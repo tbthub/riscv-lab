@@ -1,0 +1,20 @@
+#ifndef __CONF_H__
+#define __CONF_H__
+
+#define DEBUGS
+#ifdef DEBUGS
+
+// #define DEBUG_TEST         // 用于测试程序
+// #define DEBUG_ORD          // 普通调试信息
+// #define DEBUG_FS           // 初始显示文件系统信息
+#define DEBUG_FLUSH        // 显示 flush 线程的刷写信息
+// #define DEBUG_EFS_SYNC     // 显示 efs_sync 同步 sb,imap,bmap,inode的信息
+// #define DEBUG_BIO          // 显示 bio 请求链
+// #define DEBUG_GEN_BUF      // 显示 gendisk buf 读写情况
+// #define DEBUG_TASK_ADD_CPU // 显示任务添加到所在的 cpuid
+// #define DEBUG_TASK_ON_CPU  // 显示当前 CPU 上运行的线程名
+// #define DEBUG_RQ           // 显示 IO 请求
+
+#endif
+
+#endif
