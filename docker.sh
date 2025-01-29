@@ -1,5 +1,5 @@
 #!/bin/bash
-docker exec -it a4 bash
+docker exec -it riscv-lab bash
 
 #cloc .
 

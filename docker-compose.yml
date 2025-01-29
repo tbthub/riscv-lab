@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  os:
+    image: bwtang/xv6-env
+    container_name: riscv-lab
+    volumes:
+      - ./:/root/riscv-lab
+    working_dir: /root/riscv-lab
+    command: bash
+    cpus: '1'  # 限制最多使用 1 个 CPU 的算力
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
