@@ -1,0 +1,10 @@
+#https://zhuanlan.zhihu.com/p/509296983
+
+sudo apt install binutils-riscv64-linux-gnu
+sudo apt install binutils-riscv64-linux-gnu-dbg
+sudo apt install binutils-riscv64-unknown-elf
+
+sudo apt install gcc-10-riscv64-linux-gnu
+
+sudo apt-get update
+sudo apt-get install libpixman-1-dev
