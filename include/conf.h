@@ -17,4 +17,7 @@
 
 #endif
 
+
+#define MAX_PATH_LEN 256    // 支持最长路径长度
+
 #endif

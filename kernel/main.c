@@ -24,7 +24,6 @@
 #include "dev/cons.h"
 #include "dev/blk/blk_dev.h"
 
-
 #include "../test/t_head.h"
 volatile static int started = 0;
 extern void init_s();
@@ -46,14 +45,13 @@ void main()
           plic_inithart();
 
           // buf_test();
-          
+
           init_s();
           // printk("hart 0 init_s ok\n");
           // printk("xv6 kernel is booting\n");
-          
+
           __sync_synchronize();
           started = 1;
-          
      }
      else
      {

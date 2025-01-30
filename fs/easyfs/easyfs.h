@@ -93,8 +93,8 @@ struct easy_m_inode
     struct easy_d_inode i_di;
 
     sleeplock_t i_slock; // 睡眠锁控制与磁盘 IO 互斥
-    
-    atomic_t i_refcnt;   // 引用计数
+
+    atomic_t i_refcnt; // 引用计数
 
     spinlock_t i_lock; // 自旋锁保护下面的属性
     flags_t i_flags;
@@ -110,12 +110,16 @@ struct easy_m_inode
 
 // -----------------------------------------------
 
+#define DIR_MAXLEN 16
+
+#define D_CHILD (1 << 0) // 是否已经把子目录读入
+
 // 磁盘上的目录项
 struct easy_dirent
 {
-    uint32 ino;
-    enum easy_file_type type;
-    char name[16];
+    uint32 d_ino;
+    enum easy_file_type d_type;
+    char d_name[DIR_MAXLEN];
 };
 
 // 内存上的 dentry 缓存
@@ -127,13 +131,18 @@ struct easy_dentry
 
     struct easy_m_inode *d_inode; // 读入内存后首次在哈希表中查找到 inode 后便记录指针，后面就不需要查找了
     struct easy_dentry *d_parent; // 父目录
-    struct list_head d_child;     // 子目录链表
+    struct list_head d_child;     // 指向其中一个子目录（根据 sibling 方可遍历）
+    struct list_head d_sibling;   // 兄弟目录链表
 
     hash_node_t d_hnode;     // 按照名字解析后，以名字哈希到超级块哈希表，便于快速查找
     struct list_head d_list; // 链接到超级块的全局链表中
     struct list_head d_dirty;
 
-    spinlock_t lock;
+    spinlock_t d_lock;
+    sleeplock_t d_slock;
+
+    flags_t d_flags;
+    atomic_t refcnt;
 };
 
 // 1. fs
@@ -165,23 +174,28 @@ extern struct easy_m_inode *efs_i_get(int ino);
 extern struct easy_m_inode *efs_i_new();
 extern void efs_i_unlink(struct easy_m_inode *inode);
 extern void efs_i_dup(struct easy_m_inode *inode);
+extern int efs_i_update(struct easy_m_inode *m_inode);
 // extern void efs_i_sdirty(struct easy_m_inode *inode);
-// extern void efs_i_cdirty(struct easy_m_inode *inode);
+extern void efs_i_cdirty(struct easy_m_inode *inode);
 extern void efs_i_type(struct easy_m_inode *inode, enum easy_file_type ftype);
 
 extern int efs_i_read(struct easy_m_inode *inode, uint32 offset, uint32 len, void *vaddr);
 extern int efs_i_write(struct easy_m_inode *inode, uint32 offset, uint32 len, void *vaddr);
 extern void efs_i_trunc(struct easy_m_inode *inode);
+extern int efs_i_size(struct easy_m_inode *inode);
 
 extern __attribute__((unused)) void efs_i_info(const struct easy_m_inode *inode);
 
 extern void efs_i_root_init();
 
 // 4. dentry
-extern void efs_rootd_obtain();
-extern void efs_infod(const struct easy_dentry *dentry);
-extern int efs_hashd(const struct easy_dentry *dentry);
+extern void efs_d_lookup(struct easy_dentry *pd);
+extern void efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type type);
+extern struct easy_dentry *efs_d_namei(const char *path);
+extern void efs_d_root_init();
 
+extern void efs_d_info(const struct easy_dentry *dentry);
+extern void efs_d_infos(struct easy_dentry *d, int level);
 extern struct block_device *efs_bd;
 
 extern struct easy_m_super_block m_esb;

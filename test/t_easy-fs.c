@@ -40,7 +40,7 @@ static void __easy_fs_test()
     // read & write & trunc
     // struct  easy_m_inode *i2 = efs_i_new();
     // struct easy_m_inode *i2 = efs_i_new();
-    // char str[] = "haaallo world\n";
+    // char str[] = "hello world\n";
     // efs_i_write(i2, 0, sizeof(str), str);
     // struct easy_m_inode *_new = efs_i_new();
     // int bno;
@@ -50,11 +50,14 @@ static void __easy_fs_test()
     //     printk("%d -> bno: %d\n", i, bno);
     // }
     // efs_i_info(r);
-    struct easy_m_inode *i2 = efs_i_new();
-    void *addr = __alloc_pages(0, 10);
-    memset(addr, 'K', 1024 * PGSIZE);
-    efs_i_write(i2, 0, 1024 * PGSIZE, addr);
-    efs_i_info(i2);
+
+    // efs_i_write(i2, 0, sizeof(str), str);
+    // efs_i_trunc(i2);
+    // efs_i_put(i2);
+    // char *s = kmalloc(10, 0);
+    // int rl = efs_i_read(i2, 6, 5, s);
+    // printk("s: %s,read len:%d\n", s, rl);
+
     // efs_i_read(r, 2, 3, str2);
     // printk("%s\n", str2);
 
@@ -77,6 +80,35 @@ static void __easy_fs_test()
     //     efs_iinfo(inode2_);
     // else
     //     printk("aaa\n");
+
+    // efs_d_info(&root_dentry);
+    // efs_d_creat(&root_dentry, "bin", F_DIR);
+    // // printk("a1\n");
+    // efs_d_creat(&root_dentry, "dev", F_DEV);
+
+    // struct easy_dentry *d = efs_d_namei("/bin");
+    // efs_d_info(d);
+    
+    // efs_d_creat(d, "hello.txt", F_REG);
+    // efs_d_creat(d, "hello1.txt", F_REG);
+    // efs_d_creat(d, "hello3.txt", F_REG);
+    // efs_d_lookup(efs_d_namei("/bin"));
+
+    // // // printk("a2\n");
+    // efs_d_creat(&root_dentry, "swapfile", F_REG);
+    // efs_d_creat(&root_dentry, "swapfile1", F_REG);
+    // efs_d_creat(&root_dentry, "swapfile2", F_REG);
+    // efs_d_creat(&root_dentry, "swapfile3", F_DIR);
+    // efs_d_creat(&root_dentry, "swapfile4", F_REG);
+    // efs_d_creat(&root_dentry, "swapfile5", F_REG);
+    // efs_d_creat(&root_dentry, "bin", F_DIR);
+    // efs_d_lookup(&root_dentry);
+    // efs_d_creat(&root_dentry, "bin", F_DIR);
+    // efs_d_creat(efs_d_namei("/bin"), "ls", F_REG);
+    // efs_d_creat(efs_d_namei("/bin"), "cat", F_REG);
+    // efs_d_creat(&root_dentry, "dev", F_DEV);
+    
+    efs_d_infos(efs_d_namei("/bin"),0);
 }
 
 void easy_fs_test()

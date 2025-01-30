@@ -51,9 +51,15 @@ static void efs_i_cdirty(struct easy_m_inode *inode)
     list_del(&inode->i_dirty);
 }
 
+// TODO 暂时根据问题描述说下，暂时权宜改下
 // 把 inode 加到超级块链表中,需要加锁
 static void efs_i_addsb(struct easy_m_inode *m_inode)
 {
+    // if (list_empty(&m_inode->i_hnode))
+    //     hash_add_head(&m_esb.s_ihash, m_inode->i_di.i_no, &m_inode->i_hnode);
+    // if (list_empty(&m_inode->i_list))
+    //     list_add_head(&m_inode->i_list, &m_esb.s_ilist);
+
     hash_add_head(&m_esb.s_ihash, m_inode->i_di.i_no, &m_inode->i_hnode);
     list_add_head(&m_inode->i_list, &m_esb.s_ilist);
 }
@@ -69,10 +75,8 @@ static int efs_i_fill(struct easy_m_inode *m_inode, int ino)
 }
 
 // 把 inode 磁盘部分写回
-static int efs_i_update(struct easy_m_inode *m_inode)
+int efs_i_update(struct easy_m_inode *m_inode)
 {
-    if (atomic_read(&m_inode->i_refcnt) < 0)
-        panic("efs_i_update");
     assert(m_inode->i_di.i_no > 0, "efs_i_update m_inode->i_di.i_no\n");
     int offset = offset_ino(m_inode->i_di.i_no);
     return blk_write(m_inode->i_sb->s_bd, m_esb.s_ds.inode_area_start, offset, sizeof(m_inode->i_di), &m_inode->i_di);
@@ -80,18 +84,16 @@ static int efs_i_update(struct easy_m_inode *m_inode)
 
 // 引用计数为 0 后释放，i_put 确保了单线程释放
 // 这个函数会睡眠
+// TODO 考虑需不需要在 put 为 0 时候从哈希表中移除
+// TODO 要不要再添加一个 LRU2 来进行管理，不要直接从哈希表中移除
 static void efs_i_free(struct easy_m_inode *m_inode)
 {
     if (!m_inode)
         return;
-    if (TEST_FLAG(&m_inode->i_flags, I_DIRTY) == I_DIRTY)
-    {
-        efs_i_update(m_inode);
-        efs_i_cdirty(m_inode);
-    }
-
+    
     spin_lock(&m_esb.s_lock);
 
+    // TODO 待考虑...下面两行
     list_del(&m_inode->i_list);
     hash_del_node(&m_esb.s_ihash, &m_inode->i_hnode);
 
@@ -165,6 +167,9 @@ static int efs_i_bmap(struct easy_m_inode *inode, int lbno, int alloc)
 // 线程释放 inode
 void efs_i_put(struct easy_m_inode *m_inode)
 {
+    // ? 感觉有点问题。
+    // ? 如果一个目录最开始被打开后，退出目录是否需要释放
+    // ? 如果需要释放的话，也就是说会在哈希中移除。
     assert(atomic_read(&m_inode->i_refcnt) > 0, "efs_i_put");
     if (atomic_dec_and_test(&m_inode->i_refcnt))
         efs_i_free(m_inode);
@@ -307,7 +312,7 @@ struct easy_m_inode *efs_i_new()
     int ino;
     spin_lock(&m_esb.s_lock);
     ino = efs_imap_alloc();
-    printk("efs_i_new ino: %d\n", ino);
+    // printk("efs_i_new ino: %d\n", ino);
     spin_unlock(&m_esb.s_lock);
 
     struct easy_m_inode *inode = efs_i_alloc();
@@ -369,6 +374,11 @@ void efs_i_unlink(struct easy_m_inode *inode)
 void efs_i_dup(struct easy_m_inode *inode)
 {
     atomic_inc(&inode->i_refcnt);
+}
+
+inline int efs_i_size(struct easy_m_inode *inode)
+{
+    return inode->i_di.i_size;
 }
 
 void efs_i_root_init()

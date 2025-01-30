@@ -134,15 +134,15 @@ int main(int argc, char *argv[])
     root_inode._inode.i_no = 1;
     root_inode._inode.i_type = F_DIR;
     root_inode._inode.i_devno = 0;
-    root_inode._inode.i_size = BLOCK_SIZE;
-    root_inode._inode.i_addrs[0] = easy_sb.block_area_start;
+    root_inode._inode.i_size = 0;
+    // root_inode._inode.i_addrs[0] = easy_sb.block_area_start;
     atomic_set(&root_inode._inode.i_nlink, 1);
 
     printf("\n");
     printf("根目录信息:\n");
     printf("  根目录 inode 编号: %u\n", 1);
     printf("  根目录文件大小: %u\n", root_inode._inode.i_size);
-    printf("  根目录起始数据块: %u\n", root_inode._inode.i_addrs[0]);
+    // printf("  根目录起始数据块: %u\n", root_inode._inode.i_addrs[0]);
     printf("  根目录链接数: %u\n\n", atomic_read(&root_inode._inode.i_nlink));
 
     int32_t tmp = 0x2;

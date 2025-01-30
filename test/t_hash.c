@@ -28,7 +28,7 @@ void hash_test()
 
     // 打印哈希表的调试信息
     struct fox *fox_;
-    htable_for_each_entry(fox_, &fox_hash_table, 10, h_node)
+    hash_for_each_entry(fox_, &fox_hash_table, 10, h_node)
     {
         printk("%d ", fox_->id);
     }

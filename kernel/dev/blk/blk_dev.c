@@ -32,7 +32,7 @@ int register_block(struct block_device *bd, const struct gendisk_operations *ops
 {
     bd->bd_dev = devno_alloc(); // 分配设备号
     devs_add(&bd->bd_list);     // 加入全局链表
-    strcpy(bd->name, name, 16);
+    strncpy(bd->name, name, 16);
     bd->disk_size = disk_size;
     gendisk_init(bd, ops);
     return 0;

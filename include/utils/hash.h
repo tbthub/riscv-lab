@@ -27,19 +27,25 @@ extern void hash_free(struct hash_table *htable);
 #define hash_empty(htable, key) \
     list_empty(&((htable)->heads[_hash(htable, key)]))
 
-#define hash_add_tail(htable, key, list)                         \
-    list_add_tail(list, &((htable)->heads[_hash(htable, key)])); \
-    (htable)->count++
+#define hash_add_tail(htable, key, list)                             \
+    do                                                               \
+    {                                                                \
+        list_add_tail(list, &((htable)->heads[_hash(htable, key)])); \
+        (htable)->count++;                                           \
+    } while (0)
 
-#define hash_add_head(htable, key, list)                         \
-    list_add_head(list, &((htable)->heads[_hash(htable, key)])); \
-    (htable)->count++
+#define hash_add_head(htable, key, list)                             \
+    do                                                               \
+    {                                                                \
+        list_add_head(list, &((htable)->heads[_hash(htable, key)])); \
+        (htable)->count++;                                           \
+    } while (0)
 
-#define htable_for_each(pos, htable, key)                               \
+#define hash_for_each(pos, htable, key)                               \
     struct list_head *__hhead = &((htable)->heads[_hash(htable, key)]); \
     list_for_each(pos, __hhead)
 
-#define htable_for_each_entry(pos, htable, key, member)                 \
+#define hash_for_each_entry(pos, htable, key, member)                 \
     struct list_head *__hhead = &((htable)->heads[_hash(htable, key)]); \
     list_for_each_entry(pos, __hhead, member)
 
@@ -47,7 +53,7 @@ extern void hash_free(struct hash_table *htable);
     do                                                                                    \
     {                                                                                     \
         int __hash_found = 0;                                                             \
-        htable_for_each_entry(pos, htable, key, hnode_member) if (pos->key_member == key) \
+        hash_for_each_entry(pos, htable, key, hnode_member) if (pos->key_member == key) \
         {                                                                                 \
             __hash_found = 1;                                                             \
             break;                                                                        \
@@ -57,8 +63,11 @@ extern void hash_free(struct hash_table *htable);
     } while (0)
 
 #define hash_del_node(htable, entry) \
-    list_del(entry);                 \
-    (htable)->count--
+    do                               \
+    {                                \
+        list_del(entry);             \
+        (htable)->count--;           \
+    } while (0)
 
 #define hash_del(pos, htable, key_member, key, hnode_member)   \
     do                                                         \

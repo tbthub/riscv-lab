@@ -78,7 +78,7 @@ void thread_create_affinity(void (*func)(void *), void *args, const char *name, 
     panic("thread_create error!\n");
 
   new_thread->state = RUNNABLE;
-  strcpy(new_thread->name, name, 16);
+  strncpy(new_thread->name, name, 16);
   new_thread->context.ra = (uint64)thread_entry;
   new_thread->func = func;
   new_thread->args = args;
@@ -97,7 +97,7 @@ void thread_create(void (*func)(void *), void *args, const char *name)
     panic("thread_create error!\n");
 
   new_thread->state = RUNNABLE;
-  strcpy(new_thread->name, name, 16);
+  strncpy(new_thread->name, name, 16);
   new_thread->context.ra = (uint64)thread_entry;
   new_thread->func = func;
   new_thread->args = args;

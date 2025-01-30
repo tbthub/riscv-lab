@@ -33,7 +33,7 @@
 // {
 //     my_dev.bdev_ops = &bd_ops;
 //     my_dev.disk_size = DISK_SIZE;
-//     strcpy(my_dev.name, "my_dev", sizeof(my_dev.name));
+//     strncpy(my_dev.name, "my_dev", sizeof(my_dev.name));
 //     register_block(&my_dev);
 // }
 

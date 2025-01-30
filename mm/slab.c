@@ -147,7 +147,7 @@ void kmem_cache_create(struct kmem_cache *cache, const char *name, uint16 size, 
     spin_init(&cache->lock,"slab");
     spin_lock(&cache->lock);
 
-    strcpy(cache->name, name, CACHE_MAX_NAME_LEN);
+    strncpy(cache->name, name, CACHE_MAX_NAME_LEN);
     cache->flags = flags;
     cache->size = (uint16)next_power_of_2(size); // 对齐
     cache->order = calc_slab_order(size);

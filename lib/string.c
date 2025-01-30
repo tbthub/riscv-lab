@@ -33,18 +33,18 @@ void *memcpy(void *dst, const void *src, uint64 n)
 
 int strdup(void *dst, const void *src)
 {
-    char *_dst = (char*)dst;
-    char *_src = (char*)src;
+    char *_dst = (char *)dst;
+    char *_src = (char *)src;
     int len = 0;
     while ((*_dst++ = *(_src + len++)))
         ;
     return len;
 }
 
-int strcpy(void *dst, const void *src, uint16 len)
+int strncpy(void *dst, const void *src, uint16 len)
 {
-    char *_dst = (char*)dst;
-    char *_src = (char*)src;
+    char *_dst = (char *)dst;
+    char *_src = (char *)src;
     int copied = 0;
 
     while (copied < len && (*_dst++ = *_src++))
@@ -57,13 +57,22 @@ int strcpy(void *dst, const void *src, uint16 len)
     return copied; // 返回复制的字符数
 }
 
+int strncmp(const char *p, const char *q, uint n)
+{
+    while (n > 0 && *p && *p == *q)
+        n--, p++, q++;
+    if (n == 0)
+        return 0;
+    return (uchar)*p - (uchar)*q;
+}
 
 // 字符串哈希函数，使用 DJB2 算法
 int strhash(const char *str)
 {
     unsigned long hash = 5381;
 
-    while (*str) {
+    while (*str)
+    {
         hash = ((hash << 5) + hash) + (unsigned char)(*str); // hash * 33 + c
         str++;
     }

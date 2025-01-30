@@ -107,6 +107,26 @@ static __attribute__((noreturn)) void efs_sync()
             printk("efs_sync.\n");
 #endif
         }
+
+        // 刷新脏的 inode 到磁盘
+        while (!list_empty(&m_esb.s_idirty_list))
+        {
+            struct easy_m_inode *i = list_entry(list_pop(&m_esb.s_idirty_list), struct easy_m_inode, i_dirty);
+            spin_unlock(&m_esb.s_lock);
+
+            sleep_on(&i->i_slock);
+            efs_i_update(i);
+            wake_up(&i->i_slock);
+
+            spin_lock(&m_esb.s_lock);
+
+            spin_lock(&i->i_lock);
+            efs_i_cdirty(i);
+            spin_unlock(&i->i_lock);
+        }
+
+
+        
         spin_unlock(&m_esb.s_lock);
     }
 }

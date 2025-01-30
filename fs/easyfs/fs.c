@@ -14,7 +14,12 @@ int efs_mount(struct block_device *bd)
 
     // 2. root inode
     efs_i_root_init();
+    
+    // 3. root dentry
+    efs_d_root_init();
+    
     printk("easy fs init done\n");
+
 
 #ifdef DEBUG_FS
     efs_sb_info();
