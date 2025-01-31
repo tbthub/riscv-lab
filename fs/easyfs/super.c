@@ -9,6 +9,10 @@ struct easy_m_super_block m_esb;
 static struct bitmap imap;
 static struct bitmap bmap;
 
+extern int efs_i_update(struct easy_m_inode *m_inode);
+extern void efs_i_cdirty(struct easy_m_inode *inode);
+extern void efs_d_update(struct easy_dentry *pd);
+extern void efs_d_cdirty(struct easy_dentry *d);
 static void efs_fill_imap()
 {
     // 这个位图同下 bmap，目前感觉一个块完全够了，理论最大支持 4096 * 8 = 32,768 个文件
@@ -85,6 +89,8 @@ static void efs_sb_fill()
 static __attribute__((noreturn)) void efs_sync()
 {
 #ifdef DEBUG_EFS_SYNC
+    int i_dirty = 0;
+    int d_dirty = 0;
     printk("EFS_SYNC start...\n");
 #endif
     while (1)
@@ -104,7 +110,7 @@ static __attribute__((noreturn)) void efs_sync()
             // wake_up(&m_esb.s_sleep_lock);
 
 #ifdef DEBUG_EFS_SYNC
-            printk("efs_sync.\n");
+            printk("efs sync sb\n");
 #endif
         }
 
@@ -112,6 +118,9 @@ static __attribute__((noreturn)) void efs_sync()
         while (!list_empty(&m_esb.s_idirty_list))
         {
             struct easy_m_inode *i = list_entry(list_pop(&m_esb.s_idirty_list), struct easy_m_inode, i_dirty);
+#ifdef DEBUG_EFS_SYNC
+            i_dirty++;
+#endif
             spin_unlock(&m_esb.s_lock);
 
             sleep_on(&i->i_slock);
@@ -124,9 +133,38 @@ static __attribute__((noreturn)) void efs_sync()
             efs_i_cdirty(i);
             spin_unlock(&i->i_lock);
         }
+#ifdef DEBUG_EFS_SYNC
+        if (i_dirty != 0)
+            printk("efs sync dirty inode \tcount: %d\n", i_dirty);
+        i_dirty = 0;
+#endif
 
+        // 刷新目录文件
+        while (!list_empty(&m_esb.s_ddirty_list))
+        {
+            struct easy_dentry *d = list_entry(list_pop(&m_esb.s_ddirty_list), struct easy_dentry, d_dirty);
+#ifdef DEBUG_EFS_SYNC
+            d_dirty++;
+#endif
+            spin_unlock(&m_esb.s_lock);
 
-        
+            sleep_on(&d->d_slock);
+            efs_d_update(d);
+            wake_up(&d->d_slock);
+
+            spin_lock(&m_esb.s_lock);
+
+            spin_lock(&d->d_lock);
+            efs_d_cdirty(d);
+            spin_unlock(&d->d_lock);
+        }
+
+#ifdef DEBUG_EFS_SYNC
+        if (d_dirty != 0)
+            printk("efs sync dirty dentry \tcount: %d\n", i_dirty);
+        d_dirty = 0;
+#endif
+
         spin_unlock(&m_esb.s_lock);
     }
 }

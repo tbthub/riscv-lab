@@ -25,16 +25,38 @@ struct easy_dentry root_dentry = {
  *
  */
 
-// 把 dentry 加到超级块链表中,需要加锁
-static inline void efs_d_addsb(struct easy_dentry *d)
+// 将文件类型转换为便于理解的字符 - d b
+static const char efs_d_type_tostr(enum easy_file_type type)
 {
-    hash_add_head(&m_esb.s_dhash, strhash(d->d_dd.d_name), &d->d_hnode);
-    list_add_head(&d->d_list, &m_esb.s_dlist);
+    return t[type]; // 直接返回 t 数组的地址
 }
 
 static inline int efs_d_namecmp(const char *s, const char *t)
 {
     return strncmp(s, t, DIR_MAXLEN);
+}
+
+// 修改 name、type、增、删时标记为脏
+// 需要超级块的锁
+static void efs_d_sdirty(struct easy_dentry *d)
+{
+    SET_FLAG(&d->d_flags, D_DIRTY);
+    if (list_empty(&d->d_dirty))
+        list_add_head(&d->d_dirty, &m_esb.s_ddirty_list);
+}
+
+// 需要超级块的锁
+void efs_d_cdirty(struct easy_dentry *d)
+{
+    CLEAR_FLAG(&d->d_flags, D_DIRTY);
+    list_del_init(&d->d_dirty);
+}
+
+// 把 dentry 加到超级块链表中,需要加锁
+static inline void efs_d_addsb(struct easy_dentry *d)
+{
+    hash_add_head(&m_esb.s_dhash, strhash(d->d_dd.d_name), &d->d_hnode);
+    list_add_head(&d->d_list, &m_esb.s_dlist);
 }
 
 static struct easy_dentry *efs_d_alloc()
@@ -59,25 +81,7 @@ static struct easy_dentry *efs_d_alloc()
     return d;
 }
 
-// 移除相关内存结构，不过并没有释放 inode
-static void efs_d_free(struct easy_dentry *d)
-{
-    if (!d)
-        return;
-
-    spin_lock(&m_esb.s_lock);
-
-    list_del(&d->d_list);
-    hash_del_node(&m_esb.s_dhash, &d->d_hnode);
-
-    spin_unlock(&m_esb.s_lock);
-
-    list_del(&d->d_child);
-    list_del(&d->d_sibling);
-
-    kmem_cache_free(&efs_dentry_kmem_cache, d);
-}
-
+// 关联父子目录项
 static inline void efs_d_conn(struct easy_dentry *d, struct easy_dentry *pd)
 {
     d->d_parent = pd;
@@ -85,6 +89,7 @@ static inline void efs_d_conn(struct easy_dentry *d, struct easy_dentry *pd)
 }
 
 // * 从磁盘中将目录的信息读出，填充内存中的目录项
+// 需要睡眠锁
 // @param pd: 父目录项
 static void efs_d_fill(struct easy_dentry *pd)
 {
@@ -104,8 +109,24 @@ static void efs_d_fill(struct easy_dentry *pd)
     }
 }
 
-// 查重
-// * 需要加锁
+// TODO 结合 inode 描述的性能问题
+// 将目录文件内容写回磁盘
+void efs_d_update(struct easy_dentry *pd)
+{
+    struct easy_dentry *d;
+    int offset = 0;
+
+    if (!pd->d_inode)
+        pd->d_inode = efs_i_get(pd->d_dd.d_ino);
+
+    list_for_each_entry(d, &pd->d_child, d_sibling)
+    {
+        efs_i_write(pd->d_inode, offset, sizeof(struct easy_dirent), &d->d_dd);
+        offset += sizeof(struct easy_dirent);
+    }
+}
+
+// * 查重 需要加锁
 // 返回值 重复对象的目录项指针。 NULL：通过  else：未通过（含有同名）
 static struct easy_dentry *efs_d_name_check(struct easy_dentry *pd, const char *name)
 {
@@ -124,34 +145,13 @@ static struct easy_dentry *efs_d_name_check(struct easy_dentry *pd, const char *
     return NULL;
 }
 
-// 返回子目录里面 name 的目录项
+// 返回子目录里面 name 的目录项 需要加锁
 static inline struct easy_dentry *efs_d_namex(struct easy_dentry *pd, const char *name)
 {
     return efs_d_name_check(pd, name);
 }
 
-// TODO 结合 inode 描述的性能问题
-static void efs_d_write(struct easy_dentry *pd)
-{
-    struct easy_dentry *d;
-    int offset = 0;
-
-    if (!pd->d_inode)
-        pd->d_inode = efs_i_get(pd->d_dd.d_ino);
-
-    list_for_each_entry(d, &pd->d_child, d_sibling)
-    {
-        efs_i_write(pd->d_inode, offset, sizeof(struct easy_dirent), &d->d_dd);
-        offset += sizeof(struct easy_dirent);
-    }
-}
-
-static const char efs_d_type_tostr(enum easy_file_type type)
-{
-    return t[type]; // 直接返回 t 数组的地址
-}
-
-inline void efs_d_info(const struct easy_dentry *d)
+void efs_d_info(struct easy_dentry *d)
 {
     if (!d)
         return;
@@ -170,19 +170,19 @@ void efs_d_lookup(struct easy_dentry *pd)
     }
 
     list_for_each_entry(d, &pd->d_child, d_sibling)
-        efs_d_info(d);
+        printk("%c\t%s\n", efs_d_type_tostr(d->d_dd.d_type), d->d_dd.d_name);
 
     wake_up(&pd->d_slock);
 }
 
-void efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type type)
+struct easy_dentry * efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type type)
 {
     sleep_on(&pd->d_slock);
     if (efs_d_name_check(pd, name))
     {
-        printk("Create a file with the same name: %s\n", name);
+        printk("efs_d_creat: cannot create directory '%s': File exists\n", name);
         wake_up(&pd->d_slock);
-        return;
+        return NULL;
     }
 
     struct easy_m_inode *new_i = efs_i_new();
@@ -194,36 +194,24 @@ void efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type t
     efs_i_type(new_i, type);
 
     efs_d_conn(new_d, pd);
-    efs_d_write(pd);
+
+    spin_lock(&m_esb.s_lock);
+
+    spin_lock(&pd->d_lock);
+    efs_d_sdirty(pd);
+    spin_unlock(&pd->d_lock);
+
+    spin_unlock(&m_esb.s_lock);
+
     wake_up(&pd->d_slock);
-}
 
-// int efs_d_free(struct easy_dentry *d)
-// {
-//     if (!d)
-//         return;
-// }
-
-int efs_d_unlink(struct easy_dentry *pd, struct easy_dentry *d)
-{
-    if (!pd || !d)
-        return -1; // 目标不存在
-
-    if (d->d_dd.d_type == F_DIR && !list_empty(&d->d_child))
-        return -1; // 不能删除非空目录
-
-    // 从父目录的子目录链表中移除
-    list_del(&d->d_sibling);
-
-    // 释放 inode 和 dentry 资源
-    efs_inode_free(d->d_inode);
-
-    return 0; // 删除成功
+    return new_d;
 }
 
 struct easy_dentry *efs_d_namei(const char *path)
 {
     struct easy_dentry *d;
+    struct easy_dentry *dtmp;
     char *p, *tmp, *name;
 
     spin_lock(&m_esb.s_lock);
@@ -238,8 +226,8 @@ struct easy_dentry *efs_d_namei(const char *path)
     spin_unlock(&m_esb.s_lock);
 
     tmp = p = kmalloc(MAX_PATH_LEN + 1, 0);
-
-    strdup(p, path);
+    p[MAX_PATH_LEN] = '\0';
+    strncpy(p, path, MAX_PATH_LEN);
     // 如果是绝对路径
     // TODO 暂时只支持绝对路径，以后改
     if (p[0] == '/')
@@ -259,10 +247,12 @@ struct easy_dentry *efs_d_namei(const char *path)
         if (*p == '/')
         {
             *p = '\0'; // 截断
-            d = efs_d_namex(d, name);
-            if (!d) // 找不到路径，返回 NULL
+            sleep_on(&d->d_slock);
+            dtmp = efs_d_namex(d, name);
+            wake_up(&d->d_slock);
+            if (!dtmp)
                 return NULL;
-
+            d = dtmp;
             name = p + 1; // 移动到下一个目录名
         }
         p++;
@@ -270,12 +260,107 @@ struct easy_dentry *efs_d_namei(const char *path)
 
     // 解析最后一级目录
     if (*name)
-        d = efs_d_namex(d, name);
+    {
+        sleep_on(&d->d_slock);
+        dtmp = efs_d_namex(d, name);
+        wake_up(&d->d_slock);
+        d = dtmp;
+    }
+
     kfree(tmp);
     return d;
 }
 
+int efs_d_read(struct easy_dentry *d, uint32 offset, uint32 len, void *vaddr)
+{
+    sleep_on(&d->d_slock);
+    if (!d->d_inode)
+        d->d_inode = efs_i_get(d->d_dd.d_ino);
+
+    int res = efs_i_read(d->d_inode, offset, len, vaddr);
+    wake_up(&d->d_slock);
+    return res;
+}
+
+int efs_d_read_name(const char *path, uint32 offset, uint32 len, void *vaddr)
+{
+    struct easy_dentry *d;
+    d = efs_d_namei(path);
+    if (!d)
+    {
+        printk("efs_d_read_name: file '%s' not found\n", path);
+        return -1;
+    }
+    return efs_d_read(d, offset, len, vaddr);
+}
+
+int efs_d_write(struct easy_dentry *d, uint32 offset, uint32 len, void *vaddr)
+{
+    sleep_on(&d->d_slock);
+    if (!d->d_inode)
+        d->d_inode = efs_i_get(d->d_dd.d_ino);
+
+    int res = efs_i_write(d->d_inode, offset, len, vaddr);
+    wake_up(&d->d_slock);
+    return res;
+}
+
+int efs_d_write_name(const char *path, uint32 offset, uint32 len, void *vaddr)
+{
+    struct easy_dentry *d;
+    d = efs_d_namei(path);
+    if (!d)
+    {
+        printk("efs_d_write_name: file '%s' not found\n", path);
+        return -1;
+    }
+    return efs_d_write(d, offset, len, vaddr);
+}
+
+// // 移除相关内存结构，不过并没有释放 inode
+// static void efs_d_free(struct easy_dentry *d)
+// {
+//     if (!d)
+//         return;
+
+//     spin_lock(&m_esb.s_lock);
+
+//     list_del(&d->d_list);
+//     hash_del_node(&m_esb.s_dhash, &d->d_hnode);
+
+//     spin_unlock(&m_esb.s_lock);
+
+//     list_del(&d->d_child);
+//     list_del(&d->d_sibling);
+
+//     kmem_cache_free(&efs_dentry_kmem_cache, d);
+// }
+
+// int efs_d_free(struct easy_dentry *d)
+// {
+//     if (!d)
+//         return;
+// }
+
+// int efs_d_unlink(struct easy_dentry *pd, struct easy_dentry *d)
+// {
+//     if (!pd || !d)
+//         return -1; // 目标不存在
+
+//     if (d->d_dd.d_type == F_DIR && !list_empty(&d->d_child))
+//         return -1; // 不能删除非空目录
+
+//     // 从父目录的子目录链表中移除
+//     list_del(&d->d_sibling);
+
+//     // 释放 inode 和 dentry 资源
+//     efs_i_free(d->d_inode);
+
+//     return 0; // 删除成功
+// }
+
 // * 必须在 efs_i_root_init 之后
+// 这个不存在竞争
 void efs_d_root_init()
 {
     assert(root_m_inode.i_sb != NULL, "efs_d_root_init\n");
@@ -295,17 +380,17 @@ void efs_d_root_init()
     root_dentry.d_flags = 0;
     efs_d_fill(&root_dentry);
     SET_FLAG(&root_dentry.d_flags, D_CHILD);
+
+    efs_d_addsb(&root_dentry);
 }
 
-static inline void __efs_d_infos(struct easy_dentry *d, int indent, int level)
+static void __efs_d_infos(struct easy_dentry *d, int indent)
 {
 
     // 打印当前目录项
     for (int i = 0; i < indent; i++)
         printk(" ");
     printk("%s\n", d->d_dd.d_name); // 目录后面加 "/" 以区分
-    if (level == 0)
-        return;
     // 确保目录已填充子项
     if (d->d_dd.d_type == F_DIR)
     {
@@ -323,7 +408,7 @@ static inline void __efs_d_infos(struct easy_dentry *d, int indent, int level)
         if (d1->d_dd.d_type == F_DIR)
         {
             // 递归打印子目录
-            __efs_d_infos(d1, indent + 3, level - 1);
+            __efs_d_infos(d1, indent + 3);
         }
         else
         {
@@ -336,9 +421,12 @@ static inline void __efs_d_infos(struct easy_dentry *d, int indent, int level)
 }
 
 // * 用于调试
-void efs_d_infos(struct easy_dentry *d, int level)
+void efs_d_infos(struct easy_dentry *d)
 {
-    if (level == -1)
-        level = 0x7FFFFFFF;
-    __efs_d_infos(d, 0, level);
+    if (!d)
+    {
+        printk("efs_d_infos The given dentry is NULL\n");
+        return;
+    }
+    __efs_d_infos(d, 0);
 }

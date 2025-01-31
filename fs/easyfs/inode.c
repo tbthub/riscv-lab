@@ -41,25 +41,20 @@ static struct easy_m_inode *efs_i_alloc()
 static void efs_i_sdirty(struct easy_m_inode *inode)
 {
     SET_FLAG(&inode->i_flags, I_DIRTY);
-    list_del(&inode->i_dirty);
-    list_add_head(&inode->i_dirty, &inode->i_sb->s_idirty_list);
+    // list_del(&inode->i_dirty);
+    if (list_empty(&inode->i_dirty))
+        list_add_head(&inode->i_dirty, &inode->i_sb->s_idirty_list);
 }
 
-static void efs_i_cdirty(struct easy_m_inode *inode)
+void efs_i_cdirty(struct easy_m_inode *inode)
 {
     CLEAR_FLAG(&inode->i_flags, I_DIRTY);
-    list_del(&inode->i_dirty);
+    list_del_init(&inode->i_dirty);
 }
 
-// TODO 暂时根据问题描述说下，暂时权宜改下
 // 把 inode 加到超级块链表中,需要加锁
 static void efs_i_addsb(struct easy_m_inode *m_inode)
 {
-    // if (list_empty(&m_inode->i_hnode))
-    //     hash_add_head(&m_esb.s_ihash, m_inode->i_di.i_no, &m_inode->i_hnode);
-    // if (list_empty(&m_inode->i_list))
-    //     list_add_head(&m_inode->i_list, &m_esb.s_ilist);
-
     hash_add_head(&m_esb.s_ihash, m_inode->i_di.i_no, &m_inode->i_hnode);
     list_add_head(&m_inode->i_list, &m_esb.s_ilist);
 }
@@ -83,14 +78,14 @@ int efs_i_update(struct easy_m_inode *m_inode)
 }
 
 // 引用计数为 0 后释放，i_put 确保了单线程释放
-// 这个函数会睡眠
+// 这个函数可能会睡眠
 // TODO 考虑需不需要在 put 为 0 时候从哈希表中移除
 // TODO 要不要再添加一个 LRU2 来进行管理，不要直接从哈希表中移除
 static void efs_i_free(struct easy_m_inode *m_inode)
 {
     if (!m_inode)
         return;
-    
+
     spin_lock(&m_esb.s_lock);
 
     // TODO 待考虑...下面两行
@@ -98,6 +93,7 @@ static void efs_i_free(struct easy_m_inode *m_inode)
     hash_del_node(&m_esb.s_ihash, &m_inode->i_hnode);
 
     spin_unlock(&m_esb.s_lock);
+
     if (m_inode->i_indir)
     {
         blk_write_count(m_inode->i_sb->s_bd, m_inode->i_di.i_addrs[NDIRECT], 1, m_inode->i_indir);
@@ -108,7 +104,7 @@ static void efs_i_free(struct easy_m_inode *m_inode)
 
 // 将逻辑块号对应到实际的物理块
 // 并在当没有分配块号时为其分配
-// 这个函数需要加睡眠锁
+// 这个函数需要加睡眠锁互斥
 static int efs_i_bmap(struct easy_m_inode *inode, int lbno, int alloc)
 {
     int bno = 0;
@@ -197,14 +193,12 @@ struct easy_m_inode *efs_i_get(int ino)
         // printk("2\n");
     }
     spin_unlock(&m_esb.s_lock);
+
     if (creating == 1)
     {
-        // printk("3\n");
         // 上面拿到睡眠锁的线程来初始化
         efs_i_fill(m_inode, ino);
-        spin_lock(&m_esb.s_lock);
-        SET_FLAG(&m_esb.s_flags, S_DIRTY);
-        spin_unlock(&m_esb.s_lock);
+   
         SET_FLAG(&m_inode->i_flags, I_VALID);
         wake_up(&m_inode->i_slock);
         // printk("4\n");
@@ -328,8 +322,13 @@ struct easy_m_inode *efs_i_new()
 
     atomic_inc(&inode->i_refcnt);
 
+    spin_lock(&m_esb.s_lock);
+    // 对于一个新的 inode，在加入哈希表之前，其他线程获取不到这个 inode
+    // 即标记为脏可以不用对 inode 加锁
+    efs_i_sdirty(inode);
     efs_i_addsb(inode);
-    efs_i_update(inode);
+
+    spin_unlock(&m_esb.s_lock);
     return inode;
 }
 
