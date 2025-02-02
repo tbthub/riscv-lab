@@ -41,7 +41,6 @@ static struct easy_m_inode *efs_i_alloc()
 static void efs_i_sdirty(struct easy_m_inode *inode)
 {
     SET_FLAG(&inode->i_flags, I_DIRTY);
-    // list_del(&inode->i_dirty);
     if (list_empty(&inode->i_dirty))
         list_add_head(&inode->i_dirty, &inode->i_sb->s_idirty_list);
 }
@@ -77,30 +76,33 @@ int efs_i_update(struct easy_m_inode *m_inode)
     return blk_write(m_inode->i_sb->s_bd, m_esb.s_ds.inode_area_start, offset, sizeof(m_inode->i_di), &m_inode->i_di);
 }
 
-// 引用计数为 0 后释放，i_put 确保了单线程释放
-// 这个函数可能会睡眠
-// TODO 考虑需不需要在 put 为 0 时候从哈希表中移除
-// TODO 要不要再添加一个 LRU2 来进行管理，不要直接从哈希表中移除
-static void efs_i_free(struct easy_m_inode *m_inode)
-{
-    if (!m_inode)
-        return;
+// static inline void efs_i_free(struct easy_m_inode *i)
+// {
+//     kmem_cache_free(&efs_inode_kmem_cache, i);
+// }
 
-    spin_lock(&m_esb.s_lock);
+// // 引用计数为 0 后释放，i_put 确保了单线程释放
+// // 这个函数可能会睡眠
+// // TODO 考虑需不需要在 put 为 0 时候从哈希表中移除
+// // TODO 要不要再添加一个 LRU2 来进行管理，不要直接从哈希表中移除
+// static void efs_i_del(struct easy_m_inode *i)
+// {
+//     if (!i)
+//         return;
 
-    // TODO 待考虑...下面两行
-    list_del(&m_inode->i_list);
-    hash_del_node(&m_esb.s_ihash, &m_inode->i_hnode);
+//     spin_lock(&m_esb.s_lock);
 
-    spin_unlock(&m_esb.s_lock);
+//     list_del(&i->i_list);
+//     hash_del_node(&m_esb.s_ihash, &i->i_hnode);
 
-    if (m_inode->i_indir)
-    {
-        blk_write_count(m_inode->i_sb->s_bd, m_inode->i_di.i_addrs[NDIRECT], 1, m_inode->i_indir);
-        __free_page(m_inode->i_indir);
-    }
-    kmem_cache_free(&efs_inode_kmem_cache, m_inode);
-}
+//     spin_unlock(&m_esb.s_lock);
+
+//     if (i->i_indir)
+//     {
+//         blk_write_count(i->i_sb->s_bd, i->i_di.i_addrs[NDIRECT], 1, i->i_indir);
+//         __free_page(i->i_indir);
+//     }
+// }
 
 // 将逻辑块号对应到实际的物理块
 // 并在当没有分配块号时为其分配
@@ -151,7 +153,7 @@ static int efs_i_bmap(struct easy_m_inode *inode, int lbno, int alloc)
             spin_lock(&m_esb.s_lock);
             blk[lbno] = efs_bmap_alloc();
             spin_unlock(&m_esb.s_lock);
-            // 我们选择在最后释放 Inode 的时候，也就是 efs_i_free 统一把这个页面写回
+            // 我们选择在最后释放 Inode 的时候，也就是 efs_i_del 统一把这个页面写回
             // 多次睡眠锁成本可能很高，主要成本都在睡眠锁，而不是复制
             // blk_write(inode->i_sb->s_bd, bno, lbno * sizeof(blk[lbno]), sizeof(blk[lbno]), blk + lbno);
         }
@@ -160,15 +162,16 @@ static int efs_i_bmap(struct easy_m_inode *inode, int lbno, int alloc)
     return bno;
 }
 
-// 线程释放 inode
+// 释放 inode
 void efs_i_put(struct easy_m_inode *m_inode)
 {
-    // ? 感觉有点问题。
-    // ? 如果一个目录最开始被打开后，退出目录是否需要释放
-    // ? 如果需要释放的话，也就是说会在哈希中移除。
     assert(atomic_read(&m_inode->i_refcnt) > 0, "efs_i_put");
-    if (atomic_dec_and_test(&m_inode->i_refcnt))
-        efs_i_free(m_inode);
+    atomic_dec(&m_inode->i_refcnt);
+}
+
+void efs_i_dup(struct easy_m_inode *inode)
+{
+    atomic_inc(&inode->i_refcnt);
 }
 
 // 获得 ino 索引节点（这个函数会陷入睡眠）
@@ -198,7 +201,7 @@ struct easy_m_inode *efs_i_get(int ino)
     {
         // 上面拿到睡眠锁的线程来初始化
         efs_i_fill(m_inode, ino);
-   
+
         SET_FLAG(&m_inode->i_flags, I_VALID);
         wake_up(&m_inode->i_slock);
         // printk("4\n");
@@ -267,13 +270,10 @@ int efs_i_write(struct easy_m_inode *inode, uint32 offset, uint32 len, void *vad
     return tot;
 }
 
-// 截断inode（丢弃内容）。
-// 删除了这个Inode指向的文件，但是并没有删除inode本身
-void efs_i_trunc(struct easy_m_inode *inode)
+// 释放数据块，需要对超级块加自旋锁、i_slock
+static void efs_i_data_free(struct easy_m_inode *inode)
 {
     int i;
-    // 释放数据块
-    spin_lock(&m_esb.s_lock);
     for (i = 0; i < NDIRECT + 1; i++)
     {
         if (!inode->i_di.i_addrs[i])
@@ -289,15 +289,28 @@ void efs_i_trunc(struct easy_m_inode *inode)
             efs_bmap_free(inode->i_indir[i]);
         }
     }
+}
+
+// 截断inode（丢弃内容）。
+// 删除了这个Inode指向的文件，但是并没有删除inode本身
+void efs_i_trunc(struct easy_m_inode *i)
+{
+    // 释放数据块
+    sleep_on(&i->i_slock);
+    spin_lock(&m_esb.s_lock);
+
+    efs_i_data_free(i);
+
     spin_unlock(&m_esb.s_lock);
+    wake_up(&i->i_slock);
 
-    spin_lock(&inode->i_lock);
-    inode->i_di.i_size = 0;
-    spin_unlock(&inode->i_lock);
+    spin_lock(&i->i_lock);
+    i->i_di.i_size = 0;
+    spin_unlock(&i->i_lock);
 
-    sleep_on(&inode->i_slock);
-    efs_i_update(inode);
-    wake_up(&inode->i_slock);
+    sleep_on(&i->i_slock);
+    efs_i_update(i);
+    wake_up(&i->i_slock);
 }
 
 // 申请一个新的 inode,理论上后面初始化不会发生竞争
@@ -370,10 +383,7 @@ void efs_i_unlink(struct easy_m_inode *inode)
     }
 }
 
-void efs_i_dup(struct easy_m_inode *inode)
-{
-    atomic_inc(&inode->i_refcnt);
-}
+
 
 inline int efs_i_size(struct easy_m_inode *inode)
 {

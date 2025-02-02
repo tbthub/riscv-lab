@@ -81,7 +81,40 @@ static void __easy_fs_test()
     // else
     //     printk("aaa\n");
 
-    // efs_d_info(&root_dentry);
+    struct easy_dentry *rd = efs_d_named("/");
+    assert(rd == &root_dentry, "rd != &root_dentry\n");
+
+    // efs_d_info(rd);
+    efs_d_creat(rd, "bin", F_DIR);
+    efs_d_creat(rd, "dev", F_DEV);
+    efs_d_creat(rd, "home", F_DIR);
+    efs_d_creat(efs_d_named("/home"), "user", F_DIR);
+    efs_d_creat(efs_d_named("/home/user"), "docs", F_DIR);
+
+    efs_d_creat(efs_d_named("/home/user/docs"), "file1.txt", F_REG);
+    efs_d_creat(efs_d_named("/home/user/docs"), "file2.txt", F_REG);
+
+    efs_d_infos(rd);
+
+    char file_content[] = "This is the content of file1.txt";
+    efs_d_write(efs_d_named("/home/user/docs/file1.txt"), 0, sizeof(file_content), file_content);
+    char read_buffer[100];
+    efs_d_read(efs_d_named("/home/user/docs/file1.txt"), 0, sizeof(file_content), read_buffer);
+    printk("read_buffer: '%s'\n", read_buffer);
+
+    // efs_d_creat(efs_d_named("/bin"), "cat", F_REG);
+    // efs_d_creat(efs_d_named("/bin/cat"), "cat_", F_REG);
+    // efs_d_creat(efs_d_named("/bin/ls"), "ls", F_REG);
+    // efs_d_infos(rd);
+    // efs_d_infos(efs_d_named("/bin"));
+    // char str[] = "This is cat context2";
+    // char str2[] = "This is dev context";
+
+    // efs_d_creat(efs_d_named("/bin"), "cat", F_REG);
+    // efs_d_write(efs_d_named("/bin/cat"), 0, sizeof(str), str);
+    // efs_d_write_name("/bin/cat", 5, sizeof(str), str);
+    // efs_d_write(efs_d_named("/dev"), 0, sizeof(str2), str2);
+    // efs_d_infos(rd);
     // efs_d_creat(&root_dentry, "bin", F_DIR);
     // // printk("a1\n");
     // efs_d_creat(&root_dentry, "dev", F_DEV);
@@ -210,7 +243,6 @@ static void __easy_fs_test()
     // efs_d_info(rd);
     // efs_d_infos(rd);
 
-    // efs_d_lookup(efs_d_namei("/"));
     // printk("---------\n");
     // efs_d_creat(efs_d_namei("/"), "dev", F_REG);
     // efs_d_lookup(efs_d_namei("/"));

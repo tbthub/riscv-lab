@@ -168,13 +168,12 @@ extern void efs_sb_info();
 // 3. inode
 // extern void efs_i_fill(struct easy_m_inode *m_inode, int ino);
 // extern struct easy_m_inode * efs_i_alloc(int anonymous);
-// extern void efs_i_free(struct easy_m_inode *inode);
+// extern void efs_i_del(struct easy_m_inode *inode);
 extern void efs_i_put(struct easy_m_inode *m_inode);
 // extern void efs_i_update(struct easy_m_inode *inode);
 extern struct easy_m_inode *efs_i_get(int ino);
 extern struct easy_m_inode *efs_i_new();
 extern void efs_i_unlink(struct easy_m_inode *inode);
-extern void efs_i_dup(struct easy_m_inode *inode);
 
 // extern void efs_i_sdirty(struct easy_m_inode *inode);
 extern void efs_i_cdirty(struct easy_m_inode *inode);
@@ -182,7 +181,7 @@ extern void efs_i_type(struct easy_m_inode *inode, enum easy_file_type ftype);
 
 extern int efs_i_read(struct easy_m_inode *inode, uint32 offset, uint32 len, void *vaddr);
 extern int efs_i_write(struct easy_m_inode *inode, uint32 offset, uint32 len, void *vaddr);
-extern void efs_i_trunc(struct easy_m_inode *inode);
+
 extern int efs_i_size(struct easy_m_inode *inode);
 
 extern __attribute__((unused)) void efs_i_info(const struct easy_m_inode *inode);
@@ -192,7 +191,9 @@ extern void efs_i_root_init();
 // 4. dentry
 extern void efs_d_lookup(struct easy_dentry *pd);
 extern struct easy_dentry * efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type type);
-extern struct easy_dentry *efs_d_namei(const char *path);
+extern struct easy_m_inode *efs_d_namei(const char *path);
+extern struct easy_dentry *efs_d_named(const char *path);
+
 extern void efs_d_root_init();
 
 extern void efs_d_info(struct easy_dentry *d);
