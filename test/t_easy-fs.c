@@ -85,22 +85,33 @@ static void __easy_fs_test()
     assert(rd == &root_dentry, "rd != &root_dentry\n");
 
     // efs_d_info(rd);
-    efs_d_creat(rd, "bin", F_DIR);
-    efs_d_creat(rd, "dev", F_DEV);
-    efs_d_creat(rd, "home", F_DIR);
-    efs_d_creat(efs_d_named("/home"), "user", F_DIR);
-    efs_d_creat(efs_d_named("/home/user"), "docs", F_DIR);
 
-    efs_d_creat(efs_d_named("/home/user/docs"), "file1.txt", F_REG);
-    efs_d_creat(efs_d_named("/home/user/docs"), "file2.txt", F_REG);
+    // efs_d_creat(rd, "bin", F_DIR);
+    // efs_d_creat(rd, "dev", F_DEV);
+    // efs_d_creat(rd, "home", F_DIR);
+    // efs_d_creat(efs_d_named("/home"), "user", F_DIR);
+    // efs_d_creat(efs_d_named("/home/user"), "docs", F_DIR);
+    // efs_d_creat(efs_d_named("/home/user/docs"), "file1.txt", F_REG);
+    // efs_d_creat(efs_d_named("/home/user/docs"), "file2.txt", F_REG);
+    // efs_d_creat(efs_d_named("/home/user/docs"), "file3.txt", F_REG);
 
+    // struct easy_dentry *docs = efs_d_named("/home/user/docs");
+    // efs_d_lookup(docs);
+    // struct easy_m_inode * docsi = efs_d_namei("/home/user/docs");
+    // printk("aa: %d\n",docsi->i_di.i_size);
+
+    // efs_d_info(docs);
+
+    // char file_content[] = "This is the content of file1.txt";
+    // efs_d_write(file1, 0, sizeof(file_content), file_content);
+
+    // char read_buffer[100];
+    // efs_d_read(file1, 0, sizeof(file_content), read_buffer);
+
+    // efs_d_infos(rd);
+    // efs_d_unlink(efs_d_named("/home/user/docs"));
+    // efs_d_unlink(efs_d_named("/home/user/docs/file2.txt"));
     efs_d_infos(rd);
-
-    char file_content[] = "This is the content of file1.txt";
-    efs_d_write(efs_d_named("/home/user/docs/file1.txt"), 0, sizeof(file_content), file_content);
-    char read_buffer[100];
-    efs_d_read(efs_d_named("/home/user/docs/file1.txt"), 0, sizeof(file_content), read_buffer);
-    printk("read_buffer: '%s'\n", read_buffer);
 
     // efs_d_creat(efs_d_named("/bin"), "cat", F_REG);
     // efs_d_creat(efs_d_named("/bin/cat"), "cat_", F_REG);

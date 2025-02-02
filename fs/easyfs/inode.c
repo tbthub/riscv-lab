@@ -333,7 +333,7 @@ struct easy_m_inode *efs_i_new()
     memset(d_inode->i_addrs, '\0', sizeof(d_inode->i_addrs));
     atomic_set(&d_inode->i_nlink, 1);
 
-    atomic_inc(&inode->i_refcnt);
+    atomic_set(&inode->i_refcnt, 0);
 
     spin_lock(&m_esb.s_lock);
     // 对于一个新的 inode，在加入哈希表之前，其他线程获取不到这个 inode
@@ -346,14 +346,14 @@ struct easy_m_inode *efs_i_new()
 }
 
 // 减少 inode 的链接数，当链接数为 0 时释放空间
-void efs_i_unlink(struct easy_m_inode *inode)
+int efs_i_unlink(struct easy_m_inode *inode)
 {
     if (!inode)
-        return;
+        return -1;
     if (inode->i_di.i_no <= 1)
     {
         printk("efs_i_unlink inode->i_di.i_no <= 1\n");
-        return;
+        return -1;
     }
 
     if (atomic_dec_and_test(&inode->i_di.i_nlink))
@@ -364,7 +364,7 @@ void efs_i_unlink(struct easy_m_inode *inode)
         {
             printk("efs_i_unlink inode: %d, ref: %d > 0\n", inode->i_di.i_no, atomic_read(&inode->i_refcnt));
             atomic_inc(&inode->i_di.i_nlink);
-            return;
+            return -1;
         }
         // 删除
 
@@ -381,9 +381,8 @@ void efs_i_unlink(struct easy_m_inode *inode)
         efs_imap_free(inode->i_di.i_no);
         spin_unlock(&m_esb.s_lock);
     }
+    return 0;
 }
-
-
 
 inline int efs_i_size(struct easy_m_inode *inode)
 {

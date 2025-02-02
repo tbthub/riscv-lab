@@ -173,7 +173,7 @@ extern void efs_i_put(struct easy_m_inode *m_inode);
 // extern void efs_i_update(struct easy_m_inode *inode);
 extern struct easy_m_inode *efs_i_get(int ino);
 extern struct easy_m_inode *efs_i_new();
-extern void efs_i_unlink(struct easy_m_inode *inode);
+extern int efs_i_unlink(struct easy_m_inode *inode);
 
 // extern void efs_i_sdirty(struct easy_m_inode *inode);
 extern void efs_i_cdirty(struct easy_m_inode *inode);
@@ -190,7 +190,8 @@ extern void efs_i_root_init();
 
 // 4. dentry
 extern void efs_d_lookup(struct easy_dentry *pd);
-extern struct easy_dentry * efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type type);
+extern struct easy_dentry *efs_d_creat(struct easy_dentry *pd, const char *name, enum easy_file_type type);
+extern void efs_d_unlink(struct easy_dentry *d);
 extern struct easy_m_inode *efs_d_namei(const char *path);
 extern struct easy_dentry *efs_d_named(const char *path);
 
@@ -203,7 +204,6 @@ extern int efs_d_read(struct easy_dentry *d, uint32 offset, uint32 len, void *va
 extern int efs_d_read_name(const char *path, uint32 offset, uint32 len, void *vaddr);
 extern int efs_d_write(struct easy_dentry *d, uint32 offset, uint32 len, void *vaddr);
 extern int efs_d_write_name(const char *path, uint32 offset, uint32 len, void *vaddr);
-
 
 extern struct block_device *efs_bd;
 

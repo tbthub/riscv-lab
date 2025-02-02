@@ -161,7 +161,7 @@ static __attribute__((noreturn)) void efs_sync()
 
 #ifdef DEBUG_EFS_SYNC
         if (d_dirty != 0)
-            printk("efs sync dirty dentry \tcount: %d\n", i_dirty);
+            printk("efs sync dirty dentry \tcount: %d\n", d_dirty);
         d_dirty = 0;
 #endif
 

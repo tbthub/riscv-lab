@@ -125,7 +125,7 @@ void efs_d_update(struct easy_dentry *pd)
     if (!pd->d_inode)
     {
         pd->d_inode = efs_i_get(pd->d_dd.d_ino);
-        efs_i_put(efs_i_get(pd->d_dd.d_ino));
+        efs_i_put(pd->d_inode);
     }
 
     list_for_each_entry(d, &pd->d_child, d_sibling)
@@ -293,6 +293,7 @@ struct easy_dentry *efs_d_creat(struct easy_dentry *pd, const char *name, enum e
     spin_lock(&m_esb.s_lock);
 
     spin_lock(&pd->d_lock);
+    pd->d_inode->i_di.i_size += sizeof(struct easy_dirent);
     efs_d_sdirty(pd);
     spin_unlock(&pd->d_lock);
 
@@ -301,6 +302,55 @@ struct easy_dentry *efs_d_creat(struct easy_dentry *pd, const char *name, enum e
     wake_up(&pd->d_slock);
 
     return new_d;
+}
+
+void efs_d_unlink(struct easy_dentry *d)
+{
+    if (!d)
+    {
+        printk("efs_d_unlink: The file to be deleted does not exist\n");
+        return;
+    }
+
+    if (d->d_dd.d_type == F_DIR)
+    {
+        if (!TEST_FLAG(&d->d_flags, D_CHILD)) // 如果没有填充子目录
+        {
+            efs_d_fill(d);
+            SET_FLAG(&d->d_flags, D_CHILD);
+        }
+        if (!list_empty(&d->d_child))
+        {
+            printk("efs_d_unlink: failed to remove '%s': Directory not empty\n", d->d_dd.d_name);
+            return;
+        }
+    }
+
+    if (d->d_dd.d_ino == 1)
+    {
+        printk("efs_d_unlink: The root directory cannot be deleted\n");
+        return;
+    }
+
+    if (d->d_inode)
+        efs_i_dup(d->d_inode);
+    else
+        d->d_inode = efs_i_get(d->d_dd.d_ino);
+    efs_i_put(d->d_inode);
+
+    if (efs_i_unlink(d->d_inode) == 0)
+    {
+        list_del(&d->d_sibling);
+
+        spin_lock(&m_esb.s_lock);
+        spin_lock(&d->d_lock);
+
+        d->d_parent->d_inode->i_di.i_size -= sizeof(struct easy_dirent);
+        efs_d_sdirty(d->d_parent);
+
+        spin_unlock(&d->d_lock);
+        spin_unlock(&m_esb.s_lock);
+    }
 }
 
 // 目录对应的实际文件内容读写操作,需要对其加睡眠锁。。因为。。我们没有实现读写锁
@@ -358,8 +408,8 @@ int efs_d_write(struct easy_dentry *d, uint32 offset, uint32 len, void *vaddr)
         d->d_inode = efs_i_get(d->d_dd.d_ino);
         efs_i_put(d->d_inode);
     }
-
     efs_i_dup(d->d_inode);
+
     int res = efs_i_write(d->d_inode, offset, len, vaddr);
     efs_i_put(d->d_inode);
 
