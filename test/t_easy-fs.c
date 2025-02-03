@@ -81,8 +81,89 @@ static void __easy_fs_test()
     // else
     //     printk("aaa\n");
 
-    struct easy_dentry *rd = efs_d_named("/");
-    assert(rd == &root_dentry, "rd != &root_dentry\n");
+    struct easy_dentry *root = efs_d_named("/");
+    assert(root == &root_dentry, "root != &root_dentry\n");
+
+    // * 1. 创建嵌套目录
+    efs_d_creat(root, "var", F_DIR);
+    efs_d_creat(root, "etc", F_DIR);
+
+    struct easy_dentry *var_dir = efs_d_named("/var");
+    struct easy_dentry *etc_dir = efs_d_named("/etc");
+    efs_d_creat(var_dir, "log.txt", F_REG);
+    efs_d_creat(var_dir, "app.txt", F_REG);
+    struct easy_dentry *etc_config = efs_d_creat(etc_dir, "config.conf", F_REG);
+    efs_d_infos(root);
+    printk("-------------\n");
+
+    // * 2. 重命名文件和目录
+    efs_d_rename(etc_config, "config2.ymal");
+    assert(etc_config == efs_d_named("/etc/config2.ymal"), "Failed to rename config2\n");
+    efs_d_rename(var_dir, "new_var");
+    efs_d_infos(root);
+    printk("-------------\n");
+
+    // * 3.  写入和读取大文件
+    struct easy_dentry *large_file = efs_d_creat(root, "large_file", F_REG);
+    assert(large_file != NULL, "Failed to create /large_file\n");
+
+    char *large_data = __alloc_pages(0, 10);
+    memset(large_data, 'A', 1024 * PGSIZE);
+    efs_d_write(large_file, 0, 1024 * PGSIZE, large_data);
+    memset(large_data, '\0', 1024 * PGSIZE);
+
+    efs_d_read(large_file, 0, 1024 * PGSIZE, large_data);
+    int count = 0;
+    while (large_data[count] == 'A')
+        count++;
+    printk("size: %d, count: %d\n", efs_d_fsize(large_file), count);
+    assert(count == 1024 * PGSIZE, "Error: count == %d", count);
+    printk("ino: %d, fsize: %d\n", large_file->d_dd.d_ino, large_file->d_inode->i_di.i_size);
+    efs_d_infos(root);
+    printk("-------------\n");
+
+    // 删除文件
+    efs_d_unlink(large_file);
+    printk("ino: %d, fsize: %d\n", large_file->d_dd.d_ino, large_file->d_inode->i_di.i_size);
+
+    struct easy_dentry *etc_dir2 = efs_d_named("/etc");
+    efs_d_unlink(efs_d_named("/etc/config2.ymal"));
+    efs_d_unlink(etc_dir2);
+
+    efs_d_infos(root);
+    printk("-------------\n");
+    // // 创建新的目录
+
+    // // 创建子目录
+
+    // // 创建文件
+
+    // // 检查目录内容
+    // efs_d_infos(var_dir);
+    // efs_d_infos(etc_dir);
+
+    // // 测试读取文件内容
+    // char log_content[] = "This is log data in /var/log.txt";
+    // struct easy_dentry *log_file = efs_d_named("/var/log.txt");
+    // efs_d_write(log_file, 0, sizeof(log_content), log_content);
+
+    // char buffer[100];
+    // efs_d_read(log_file, 0, sizeof(log_content), buffer);
+    // printk("Read from /var/log.txt: %s\n", buffer);
+
+    // // 删除文件
+    // efs_d_unlink(log_file);
+    // efs_d_infos(var_dir); // Verify that file has been deleted
+
+    // // 删除目录
+    // efs_d_unlink(var_dir);
+    // efs_d_unlink(etc_dir);
+    // efs_d_rename(etc_dir, "etc_dir2");
+    // efs_d_rename(var_dir, "etc_dir2");
+    // efs_d_infos(root); // Verify that directories have been deleted
+
+    // struct easy_dentry *rd = efs_d_named("/");
+    // assert(rd == &root_dentry, "rd != &root_dentry\n");
 
     // efs_d_info(rd);
 
@@ -111,7 +192,7 @@ static void __easy_fs_test()
     // efs_d_infos(rd);
     // efs_d_unlink(efs_d_named("/home/user/docs"));
     // efs_d_unlink(efs_d_named("/home/user/docs/file2.txt"));
-    efs_d_infos(rd);
+    // efs_d_infos(rd);
 
     // efs_d_creat(efs_d_named("/bin"), "cat", F_REG);
     // efs_d_creat(efs_d_named("/bin/cat"), "cat_", F_REG);

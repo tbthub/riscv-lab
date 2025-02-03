@@ -353,6 +353,26 @@ void efs_d_unlink(struct easy_dentry *d)
     }
 }
 
+void efs_d_rename(struct easy_dentry *d, const char *rename)
+{
+    if (efs_d_name_check(d->d_parent, rename))
+    {
+        printk("efs_d_rename: cannot create directory '%s': File exists\n", rename);
+        return;
+    }
+
+    if (d->d_inode)
+        efs_i_dup(d->d_inode);
+    else
+        d->d_inode = efs_i_get(d->d_dd.d_ino);
+
+    spin_lock(&d->d_lock);
+    strncpy(d->d_dd.d_name, rename, DIR_MAXLEN);
+    spin_unlock(&d->d_lock);
+
+    efs_i_put(d->d_inode);
+}
+
 // 目录对应的实际文件内容读写操作,需要对其加睡眠锁。。因为。。我们没有实现读写锁
 // dup，namei 会增加引用计数，put 释放。
 // 在中间对 inode 内容读写操作，可以避免读写时有其他线程删除文件，从而导致未知错误
@@ -429,6 +449,16 @@ int efs_d_write_name(const char *path, uint32 offset, uint32 len, void *vaddr)
     return efs_d_write(d, offset, len, vaddr);
 }
 
+int efs_d_fsize(struct easy_dentry *d)
+{
+    if (d->d_inode)
+        efs_i_dup(d->d_inode);
+    else
+        d->d_inode = efs_i_get(d->d_dd.d_ino);
+    int fsize = efs_i_size(d->d_inode);
+    efs_i_put(d->d_inode);
+    return fsize;
+}
 // // 删除目录项
 // int efs_d_rm(struct easy_dentry *d)
 // {

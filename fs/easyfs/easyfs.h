@@ -194,6 +194,8 @@ extern struct easy_dentry *efs_d_creat(struct easy_dentry *pd, const char *name,
 extern void efs_d_unlink(struct easy_dentry *d);
 extern struct easy_m_inode *efs_d_namei(const char *path);
 extern struct easy_dentry *efs_d_named(const char *path);
+extern void efs_d_rename(struct easy_dentry *d, const char *rename);
+extern int efs_d_fsize(struct easy_dentry *d);
 
 extern void efs_d_root_init();
 

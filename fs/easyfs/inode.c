@@ -69,11 +69,20 @@ static int efs_i_fill(struct easy_m_inode *m_inode, int ino)
 }
 
 // 把 inode 磁盘部分写回
-int efs_i_update(struct easy_m_inode *m_inode)
+int efs_i_update(struct easy_m_inode *i)
 {
-    assert(m_inode->i_di.i_no > 0, "efs_i_update m_inode->i_di.i_no\n");
-    int offset = offset_ino(m_inode->i_di.i_no);
-    return blk_write(m_inode->i_sb->s_bd, m_esb.s_ds.inode_area_start, offset, sizeof(m_inode->i_di), &m_inode->i_di);
+    assert(i->i_di.i_no > 0, "efs_i_update i->i_di.i_no\n");
+    int offset = offset_ino(i->i_di.i_no);
+    // 写回 inode 元数据
+    blk_write(i->i_sb->s_bd, m_esb.s_ds.inode_area_start, offset, sizeof(i->i_di), &i->i_di);
+    // 如果间接块被读入，则写回间接块
+    if (i->i_indir)
+    {
+        blk_write_count(i->i_sb->s_bd, i->i_di.i_addrs[NDIRECT], 1, i->i_indir);
+        // TODO 这个页面也暂时常驻内存，后面如果让 LRU 回收的时候再释放
+        // __free_page(i->i_indir);
+    }
+    return 0;
 }
 
 // static inline void efs_i_free(struct easy_m_inode *i)
@@ -263,9 +272,15 @@ int efs_i_write(struct easy_m_inode *inode, uint32 offset, uint32 len, void *vad
         m = min(len - tot, BLOCK_SIZE - offset % BLOCK_SIZE);
         blk_write(efs_bd, bno, (offset % BLOCK_SIZE), m, vaddr);
     }
+
+    spin_lock(&m_esb.s_lock);
+    spin_lock(&inode->i_lock);
     if (offset > inode->i_di.i_size)
         inode->i_di.i_size = offset;
-    efs_i_update(inode);
+    efs_i_sdirty(inode);
+    spin_unlock(&inode->i_lock);
+    spin_unlock(&m_esb.s_lock);
+
     wake_up(&inode->i_slock);
     return tot;
 }
@@ -296,21 +311,19 @@ static void efs_i_data_free(struct easy_m_inode *inode)
 void efs_i_trunc(struct easy_m_inode *i)
 {
     // 释放数据块
+
     sleep_on(&i->i_slock);
     spin_lock(&m_esb.s_lock);
-
-    efs_i_data_free(i);
-
+    efs_i_data_free(i); // 释放数据块
     spin_unlock(&m_esb.s_lock);
     wake_up(&i->i_slock);
 
+    spin_lock(&m_esb.s_lock);
     spin_lock(&i->i_lock);
     i->i_di.i_size = 0;
+    efs_i_sdirty(i);
     spin_unlock(&i->i_lock);
-
-    sleep_on(&i->i_slock);
-    efs_i_update(i);
-    wake_up(&i->i_slock);
+    spin_unlock(&m_esb.s_lock);
 }
 
 // 申请一个新的 inode,理论上后面初始化不会发生竞争
@@ -409,10 +422,14 @@ void efs_i_root_init()
 
 inline void efs_i_type(struct easy_m_inode *inode, enum easy_file_type ftype)
 {
+    spin_lock(&m_esb.s_lock);
     spin_lock(&inode->i_lock);
+
     inode->i_di.i_type = ftype;
     efs_i_sdirty(inode);
+
     spin_unlock(&inode->i_lock);
+    spin_unlock(&m_esb.s_lock);
 }
 
 __attribute__((unused)) void efs_i_info(const struct easy_m_inode *inode)
