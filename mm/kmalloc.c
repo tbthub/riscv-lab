@@ -6,6 +6,7 @@
 #include "core/timer.h"
 #include "dev/blk/bio.h"
 #include "../fs/easyfs/easyfs.h"
+#include "fs/file.h"
 
 struct kmem_cache kmalloc16;
 struct kmem_cache kmalloc32;
@@ -38,6 +39,7 @@ struct kmem_cache bio_kmem_cache;
 struct kmem_cache timer_kmem_cache;
 struct kmem_cache efs_inode_kmem_cache;
 struct kmem_cache efs_dentry_kmem_cache;
+struct kmem_cache file_kmem_cache;
 
 void kmalloc_init()
 {
@@ -60,6 +62,7 @@ void kmalloc_init()
     kmem_cache_create(&timer_kmem_cache, "timer_kmem_cache", sizeof(struct timer), 0);
     kmem_cache_create(&efs_inode_kmem_cache, "inode_kmem_cache", sizeof(struct easy_m_inode), 0);
     kmem_cache_create(&efs_dentry_kmem_cache, "dentry_kmem_cache", sizeof(struct easy_dentry), 0);
+    kmem_cache_create(&file_kmem_cache, "file_kmem_cache", sizeof(struct file), 0);
 }
 
 void *kmalloc(int size, uint32 flags)

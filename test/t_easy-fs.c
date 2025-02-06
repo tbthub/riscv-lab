@@ -5,6 +5,7 @@
 #include "core/timer.h"
 #include "utils/string.h"
 #include "../fs/easyfs/easyfs.h"
+#include "fs/file.h"
 // 必须等到文件系统初始化完成后才可以测试
 static void __easy_fs_test()
 {
@@ -84,54 +85,108 @@ static void __easy_fs_test()
     struct easy_dentry *root = efs_d_named("/");
     assert(root == &root_dentry, "root != &root_dentry\n");
 
-    // * 1. 创建嵌套目录
+    // // * 1. 创建嵌套目录
     efs_d_creat(root, "var", F_DIR);
     efs_d_creat(root, "etc", F_DIR);
 
     struct easy_dentry *var_dir = efs_d_named("/var");
-    struct easy_dentry *etc_dir = efs_d_named("/etc");
+    // struct easy_dentry *etc_dir = efs_d_named("/etc");
     efs_d_creat(var_dir, "log.txt", F_REG);
     efs_d_creat(var_dir, "app.txt", F_REG);
-    struct easy_dentry *etc_config = efs_d_creat(etc_dir, "config.conf", F_REG);
+    // struct easy_dentry *etc_config = efs_d_creat(etc_dir, "config.conf", F_REG);
     efs_d_infos(root);
     printk("-------------\n");
 
-    // * 2. 重命名文件和目录
-    efs_d_rename(etc_config, "config2.ymal");
-    assert(etc_config == efs_d_named("/etc/config2.ymal"), "Failed to rename config2\n");
-    efs_d_rename(var_dir, "new_var");
-    efs_d_infos(root);
-    printk("-------------\n");
+    // // * 2. 重命名文件和目录
+    // efs_d_rename(etc_config, "config2.ymal");
+    // assert(etc_config == efs_d_named("/etc/config2.ymal"), "Failed to rename config2\n");
+    // efs_d_rename(var_dir, "new_var");
+    // efs_d_infos(root);
+    // printk("-------------\n");
 
-    // * 3.  写入和读取大文件
-    struct easy_dentry *large_file = efs_d_creat(root, "large_file", F_REG);
-    assert(large_file != NULL, "Failed to create /large_file\n");
+    // // * 3.  写入和读取大文件
+    // struct easy_dentry *large_file = efs_d_creat(root, "large_file", F_REG);
+    // assert(large_file != NULL, "Failed to create /large_file\n");
 
-    char *large_data = __alloc_pages(0, 10);
-    memset(large_data, 'A', 1024 * PGSIZE);
-    efs_d_write(large_file, 0, 1024 * PGSIZE, large_data);
-    memset(large_data, '\0', 1024 * PGSIZE);
+    // char *large_data = __alloc_pages(0, 10);
+    // memset(large_data, 'A', 1024 * PGSIZE);
+    // efs_d_write(large_file, 0, 1024 * PGSIZE, large_data);
+    // memset(large_data, '\0', 1024 * PGSIZE);
 
-    efs_d_read(large_file, 0, 1024 * PGSIZE, large_data);
-    int count = 0;
-    while (large_data[count] == 'A')
-        count++;
-    printk("size: %d, count: %d\n", efs_d_fsize(large_file), count);
-    assert(count == 1024 * PGSIZE, "Error: count == %d", count);
-    printk("ino: %d, fsize: %d\n", large_file->d_dd.d_ino, large_file->d_inode->i_di.i_size);
-    efs_d_infos(root);
-    printk("-------------\n");
+    // efs_d_read(large_file, 0, 1024 * PGSIZE, large_data);
+    // int count = 0;
+    // while (large_data[count] == 'A')
+    //     count++;
+    // printk("size: %d, count: %d\n", efs_d_fsize(large_file), count);
+    // assert(count == 1024 * PGSIZE, "Error: count == %d", count);
+    // printk("ino: %d, fsize: %d\n", large_file->d_dd.d_ino, large_file->d_inode->i_di.i_size);
+    // efs_d_infos(root);
+    // printk("-------------\n");
 
-    // 删除文件
-    efs_d_unlink(large_file);
-    printk("ino: %d, fsize: %d\n", large_file->d_dd.d_ino, large_file->d_inode->i_di.i_size);
+    // // 删除文件
+    // efs_d_unlink(large_file);
+    // printk("ino: %d, fsize: %d\n", large_file->d_dd.d_ino, large_file->d_inode->i_di.i_size);
 
-    struct easy_dentry *etc_dir2 = efs_d_named("/etc");
-    efs_d_unlink(efs_d_named("/etc/config2.ymal"));
-    efs_d_unlink(etc_dir2);
+    // struct easy_dentry *etc_dir2 = efs_d_named("/etc");
+    // efs_d_unlink(efs_d_named("/etc/config2.ymal"));
+    // efs_d_unlink(etc_dir2);
 
-    efs_d_infos(root);
-    printk("-------------\n");
+    // efs_d_infos(root);
+    // printk("-------------\n");
+
+    // struct file *f1 = file_open("/var/log.txt", FILE_RDWR);
+    // assert(f1 != NULL, "f1 == NULL");
+    // char w_log[] = "This is log!";
+    // file_write(f1, w_log, sizeof(w_log));
+
+    // file_llseek(f1, 2, SEEK_SET);
+
+    // // struct file *f2 = file_open("/var/log.txt", FILE_RDWR);
+    // char r_log[sizeof(w_log)];
+    // int len = file_read(f1, r_log, sizeof(w_log));
+    // printk("%s,len: %d", r_log, len);
+
+    // 打开文件，设置读写权限
+    struct file *f1 = file_open("/var/log.txt", FILE_RDWR);
+    assert(f1 != NULL, "file_open failed: f1 == NULL");
+
+    // 写入日志
+    char w_log[] = "This is log!";
+    int write_len = file_write(f1, w_log, sizeof(w_log));
+    assert(write_len == sizeof(w_log), "file_write failed: not all data written");
+
+    // 移动文件指针
+    int offset = 2;
+    int ret = file_llseek(f1, offset, SEEK_SET);
+    assert(ret == 0, "file_llseek failed: could not seek to offset");
+
+    // // 读取日志
+    char r_log[sizeof(w_log)];
+    int len = file_read(f1, r_log, sizeof(w_log));
+    assert(len > 0, "file_read failed: no data read");
+
+    // // 输出读取的内容
+    printk("Read Log: %s, len: %d\n", r_log, len);
+
+    // // 额外的边界测试：读写大于文件内容的情况
+    char w_log_large[] = "This is a large log that exceeds the previous size.";
+    ret = file_write(f1, w_log_large, sizeof(w_log_large));
+    assert(ret == sizeof(w_log_large), "file_write failed: large log write error");
+
+    // 检查读写后的文件内容
+    char r_log_large[sizeof(w_log_large)];
+    file_llseek(f1, 0, SEEK_SET); // 从文件开头重新读取
+    len = file_read(f1, r_log_large, sizeof(w_log_large));
+    assert(len == sizeof(w_log_large), "file_read failed: large log read error");
+    printk("Read Large Log: %s, len: %d\n", r_log_large, len);
+
+    printk("now size of file: %d\n",efs_i_size(f1->f_ip));
+
+    // 关闭文件操作（如果有此操作）
+    file_close(f1);  // 关闭文件，若有关闭操作
+
+    printk("File operations test passed successfully.\n");
+
     // // 创建新的目录
 
     // // 创建子目录

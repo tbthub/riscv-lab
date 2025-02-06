@@ -55,7 +55,8 @@
         "ratio": "c",
         "tuple": "c",
         "utility": "c",
-        "random": "c"
+        "random": "c",
+        "file.h": "c"
     },
     "workbench.list.horizontalScrolling": true
 }

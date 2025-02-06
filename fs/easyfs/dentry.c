@@ -233,6 +233,12 @@ struct easy_m_inode *efs_d_namei(const char *path)
     struct easy_dentry *d;
 
     d = efs_d_named(path);
+    if (!d)
+    {
+        printk("efs_d_namei: file not found: %s\n", path);
+        return NULL;
+    }
+    
     if (d->d_inode)
         efs_i_dup(d->d_inode);
     else
