@@ -23,7 +23,9 @@ static void init_thread(void *)
     // block_func_test();   // 测试硬盘读写功能
 
     efs_mount(&virtio_disk);
-    easy_fs_test();
+    // easy_fs_test();
+    int *a = NULL;
+    printk("%d", *a);
     // while (1)
     //     ;
 }

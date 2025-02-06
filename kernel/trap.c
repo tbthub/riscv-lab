@@ -101,18 +101,29 @@ void kerneltrap()
 
     if (intr_get() != 0) // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
         panic("kerneltrap: interrupts enabled");
+    uint64 stval;
     if ((which_dev = dev_intr()) == 0)
     {
         switch (scause)
         {
         case 12:
             printk("kerneltrap scause: 12\n");
-            uint64 scause, stval;
             asm volatile("csrr %0, scause" : "=r"(scause));
             asm volatile("csrr %0, stval" : "=r"(stval));
             printk("scause: %p, stval: %p\n", scause, stval);
             break;
-
+        case 13:
+            printk("kerneltrap scause: 13 (Load Page Fault)\n");
+            asm volatile("csrr %0, scause" : "=r"(scause));
+            asm volatile("csrr %0, stval" : "=r"(stval));
+            printk("scause: %p, stval: %p\n", scause, stval);
+            break;
+        case 15:
+            printk("kerneltrap scause: 15 (Store/AMO Page Fault)\n");
+            asm volatile("csrr %0, scause" : "=r"(scause));
+            asm volatile("csrr %0, stval" : "=r"(stval));
+            printk("scause: %p, stval: %p\n", scause, stval);
+            break;
         default:
             break;
         }

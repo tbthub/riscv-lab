@@ -89,6 +89,7 @@ static void __easy_fs_test()
     efs_d_creat(root, "var", F_DIR);
     efs_d_creat(root, "etc", F_DIR);
 
+
     struct easy_dentry *var_dir = efs_d_named("/var");
     // struct easy_dentry *etc_dir = efs_d_named("/etc");
     efs_d_creat(var_dir, "log.txt", F_REG);

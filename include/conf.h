@@ -17,7 +17,9 @@
 
 #endif
 
+#define MAX_PATH_LEN 256 // 支持最长路径长度
 
-#define MAX_PATH_LEN 256    // 支持最长路径长度
+#define ARG_MAX 128 * 1024 // 传入参数最长 128K
+#define ENV_MAX 128 * 1024 // 环境变量最长 128K
 
 #endif
