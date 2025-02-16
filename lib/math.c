@@ -1,4 +1,4 @@
-#include "utils/math.h"
+#include "lib/math.h"
 #include "std/stddef.h"
 inline uint64 next_power_of_2(uint64 n)
 {

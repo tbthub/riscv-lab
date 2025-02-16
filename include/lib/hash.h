@@ -2,7 +2,7 @@
 #define __htable_H__
 #include "std/stddef.h"
 #include "mm/kmalloc.h"
-#include "utils/list.h"
+#include "lib/list.h"
 
 typedef struct list_head hash_node_t;
 

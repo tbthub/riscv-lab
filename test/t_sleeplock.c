@@ -1,4 +1,4 @@
-#include "utils/sleeplock.h"
+#include "lib/sleeplock.h"
 #include "std/stdio.h"
 #include "core/proc.h"
 static sleeplock_t lock1;
@@ -57,9 +57,9 @@ void sleep_test()
         mutex_init_zero(&lock3, "test3");
         mutex_init_zero(&lock4, "test4");
 
-        thread_create(thread1, NULL,"thread_A");
-        thread_create(thread2, NULL,"thread_B");
-        thread_create(thread3, NULL,"thread_C");
-        thread_create(thread4, NULL,"thread_D");
+        kthread_create(thread1, NULL,"thread_A",NO_CPU_AFF);
+        kthread_create(thread2, NULL,"thread_B",NO_CPU_AFF);
+        kthread_create(thread3, NULL,"thread_C",NO_CPU_AFF);
+        kthread_create(thread4, NULL,"thread_D",NO_CPU_AFF);
     }
 }

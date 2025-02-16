@@ -1,4 +1,4 @@
-#include "utils/bitmap.h"
+#include "lib/bitmap.h"
 #include "mm/kmalloc.h"
 
 int bitmap_test()

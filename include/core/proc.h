@@ -4,14 +4,13 @@
 #include "std/stddef.h"
 #include "core/sched.h"
 #include "param.h"
-#include "utils/list.h"
-#include "utils/spinlock.h"
+#include "lib/list.h"
+#include "lib/spinlock.h"
 #include "riscv.h"
 
 typedef int pid_t;
 #define KERNEL_STACK_SIZE 4096
 #define current myproc()
-#define no_cpu_affinity -1
 
 // Saved registers for kernel context switches.
 struct context
@@ -46,7 +45,7 @@ struct cpu
   // 暂时先不管
   struct thread_info *thread;
   struct thread_info *idle;
-  struct sched_struct sched_list; // 每个CPU的进程调用链，不必加锁。
+  struct sched_struct sched_list; // 每个CPU的进程调用链
 };
 extern struct cpu cpus[NCPU];
 
@@ -87,45 +86,24 @@ struct thread_info
   uint64 ticks;
 
   // wait_lock must be held when using this:
-  struct list_head parent; // 父进程指针
-  union
-  {
-    struct list_head sched;  // 全局任务链表
-    struct list_head waiter; // 等待链表
-  };
-  union
-  {
-    struct trapframe *trapframe;
-    void (*func)(void*);
-  };
+  struct thread_info *parent; // 父进程指针
+  struct list_head sched;     // 全局任务链表, 同时也是信号量等待队列
+
+  void (*func)(void *);
   void *args;
-  uint16 cpu_id;   // 用于记录当前线程在哪个核心上运行
   int cpu_affinity;
+
+  uint16 cpu_id; // 用于记录当前线程在哪个核心上运行，这个暂时没想到干啥，先用着
 
   // these are private to the process, so p->lock need not be held.
   struct context context;
   char name[16];
 };
 
-
-
-struct pid_pool_struct
-{
-  // 用于分配 pid 由于我们使用了slab回收的可以直接利用
-  int pids;
-  // 保护pids的递增
-  spinlock_t lock;
-};
-
-extern struct pid_pool_struct pid_pool;
-
-extern void sched_init();
+extern void proc_init();
 extern int cpuid();
 extern struct cpu *mycpu();
 extern struct thread_info *myproc(void);
-extern struct thread_info *alloc_thread();
-extern void thread_create(void (*func)(void *), void *args, const char *name);
-extern void thread_create_affinity(void (*func)(void *), void *args, const char *name, int cpu_affinity);
-extern void add_runnable_task(struct thread_info *thread);
+extern struct thread_info *thread_struct_init();
 
 #endif

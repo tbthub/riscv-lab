@@ -1,8 +1,8 @@
 #ifndef __DEVS_H__
 #define __DEVS_H__
 #include "std/stddef.h"
-#include "utils/spinlock.h"
-#include "utils/list.h"
+#include "lib/spinlock.h"
+#include "lib/list.h"
 #include "dev/blk/blk_dev.h"
 
 // 全局设备链。

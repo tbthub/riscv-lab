@@ -1,7 +1,7 @@
-#include "utils/sleeplock.h"
+#include "lib/sleeplock.h"
 #include "std/stddef.h"
 #include "core/proc.h"
-#include "utils/mutex.h"
+#include "lib/mutex.h"
 
 // 初始化睡眠锁，我们简单认为是信号量为1，有点类似于 Mutex
 inline void sleep_init(sleeplock_t *lk, const char *name)

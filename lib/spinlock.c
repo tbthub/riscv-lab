@@ -1,9 +1,9 @@
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 #include "core/proc.h"
 #include "std/stddef.h"
 #include "riscv.h"
 #include "defs.h"
-#include "utils/string.h"
+#include "lib/string.h"
 
 void spin_init(spinlock_t *lock, const char *name)
 {

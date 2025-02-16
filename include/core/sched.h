@@ -1,8 +1,10 @@
 #ifndef __SCHED_H__
 #define __SCHED_H__
 
-#include "utils/spinlock.h"
-#include "utils/list.h"
+#include "lib/spinlock.h"
+#include "lib/list.h"
+
+struct thread_info;
 
 struct sched_struct
 {
@@ -11,12 +13,15 @@ struct sched_struct
     struct list_head out;
 };
 
+#define NO_CPU_AFF -1
 
-void scheduler();
-void yield();
-void sched(void);
-void quit();
+extern void sched();
+extern void yield();
+extern void scheduler();
 
-struct thread_info *pick_next_task(struct list_head *run_list);
-void wakeup_process(struct thread_info *thread);
+extern void sched_init();
+extern void wakeup_process(struct thread_info *thread);
+extern void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_affinity);
+extern void debug_cpu_shed_list() __attribute__((unused));
+
 #endif

@@ -1,6 +1,6 @@
 #include "core/proc.h"
 #include "std/stdio.h"
-#include "utils/semaphore.h"
+#include "lib/semaphore.h"
 
 static void testB_fun()
 {
@@ -38,9 +38,9 @@ static void testA_fun()
           if (a > 25000000 && BCD == 0)
           {
                BCD = 1;
-               thread_create(testB_fun, NULL, "testB");
-               thread_create(testC_fun, NULL, "testC");
-               thread_create(testD_fun, NULL, "testD");
+               kthread_create(testB_fun, NULL, "testB",NO_CPU_AFF);
+               kthread_create(testC_fun, NULL, "testC",NO_CPU_AFF);
+               kthread_create(testD_fun, NULL, "testD",NO_CPU_AFF);
           }
      }
 }
@@ -49,6 +49,6 @@ void thread_test()
 {
      if (cpuid() == 0)
      {
-          thread_create(testA_fun, NULL, "testA");
+          kthread_create(testA_fun, NULL, "testA",NO_CPU_AFF);
      }
 }

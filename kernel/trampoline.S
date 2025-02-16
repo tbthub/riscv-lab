@@ -9,7 +9,6 @@
         # kernel.ld causes this code to start at 
         # a page boundary.
         #
-        # 后面要改
 
 #include "riscv.h"
 #include "mm/memlayout.h"

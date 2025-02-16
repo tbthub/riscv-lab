@@ -1,5 +1,5 @@
-#include "utils/spinlock.h"
-#include "utils/list.h"
+#include "lib/spinlock.h"
+#include "lib/list.h"
 #include "mm/buddy.h"
 #include "mm/page.h"
 #include "mm/mm.h"
@@ -8,7 +8,7 @@
 #include "mm/memlayout.h"
 #include "std/stdio.h"
 #include "mm/kmalloc.h"
-#include "utils/string.h"
+#include "lib/string.h"
 #include "defs.h"
 // 注：我们的伙伴算法，实际上只是管理 mem_map.pages 这个数组
 // 并不涉及具体页面地址的管理

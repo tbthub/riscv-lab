@@ -1,9 +1,9 @@
 #ifndef __efs_H__
 #define __efs_H__
 #include "std/stddef.h"
-#include "utils/hash.h"
-#include "utils/list.h"
-#include "utils/sleeplock.h"
+#include "lib/hash.h"
+#include "lib/list.h"
+#include "lib/sleeplock.h"
 #include "dev/blk/blk_dev.h"
 
 #define EASYFS_MAGIC 0x12345678

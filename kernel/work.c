@@ -1,7 +1,7 @@
 #include "core/work.h"
-#include "utils/semaphore.h"
-#include "utils/mutex.h"
-#include "utils/list.h"
+#include "lib/semaphore.h"
+#include "lib/mutex.h"
+#include "lib/list.h"
 #include "mm/kmalloc.h"
 #include "core/proc.h"
 
@@ -71,7 +71,7 @@ void work_queue_init()
     {
         sem_init(&work_queue[i].count, 0, "work_count");
         fifo_init(&work_queue[i].queue);
-        thread_create_affinity(kthread_work_handler, NULL, "work_handler",i);
+        kthread_create(kthread_work_handler, NULL, "work_handler",i);
     }
 }
 

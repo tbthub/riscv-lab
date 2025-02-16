@@ -3,9 +3,9 @@
 
 #include "std/stddef.h"
 
-#include "utils/list.h"
-#include "utils/semaphore.h"
-#include "utils/sleeplock.h"
+#include "lib/list.h"
+#include "lib/semaphore.h"
+#include "lib/sleeplock.h"
 
 #include "dev/blk/bio.h"
 

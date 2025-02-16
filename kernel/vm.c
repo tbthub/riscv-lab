@@ -2,8 +2,8 @@
 #include "mm/mm.h"
 #include "mm/page.h"
 #include "std/stdio.h"
-#include "utils/string.h"
-#include "utils/spinlock.h"
+#include "lib/string.h"
+#include "lib/spinlock.h"
 #include "std/stddef.h"
 #include "defs.h"
 

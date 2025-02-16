@@ -1,4 +1,4 @@
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 #include "dev/uart.h"
 #include "dev/cons.h"
 

@@ -1,6 +1,6 @@
-#include "utils/hash.h"
+#include "lib/hash.h"
 #include "mm/kmalloc.h"
-#include "utils/string.h"
+#include "lib/string.h"
 
 
 

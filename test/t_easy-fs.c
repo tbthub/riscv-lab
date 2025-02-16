@@ -3,7 +3,7 @@
 #include "dev/blk/gendisk.h"
 #include "dev/blk/blk_dev.h"
 #include "core/timer.h"
-#include "utils/string.h"
+#include "lib/string.h"
 #include "../fs/easyfs/easyfs.h"
 #include "fs/file.h"
 // 必须等到文件系统初始化完成后才可以测试
@@ -339,19 +339,19 @@ static void __easy_fs_test()
     // efs_d_write_name("/bin/ls", 0, sizeof(str2), str2);
     // efs_d_write_name("/bin/echo", 0, sizeof(str3), str3);
 
-    // // 创建 /bin/utils 目录
-    // printk("Creating /bin/utils directory...\n");
-    // struct easy_dentry *utils_d = efs_d_creat(bin_d, "utils", F_DIR);
-    // if (!utils_d)
+    // // 创建 /bin/lib 目录
+    // printk("Creating /bin/lib directory...\n");
+    // struct easy_dentry *lib_d = efs_d_creat(bin_d, "lib", F_DIR);
+    // if (!lib_d)
     // {
-    //     printk("Failed to create /bin/utils!\n");
+    //     printk("Failed to create /bin/lib!\n");
     //     return;
     // }
 
-    // // 在 /bin/utils 目录下创建 hello 文件
-    // efs_d_creat(utils_d, "hello", F_REG);
+    // // 在 /bin/lib 目录下创建 hello 文件
+    // efs_d_creat(lib_d, "hello", F_REG);
     // char hello_str[] = "Hello World!";
-    // efs_d_write_name("/bin/utils/hello", 0, sizeof(hello_str), hello_str);
+    // efs_d_write_name("/bin/lib/hello", 0, sizeof(hello_str), hello_str);
 
     // // 读取 /bin/bash
     // char *vaddr = __alloc_page(0);
@@ -366,9 +366,9 @@ static void __easy_fs_test()
     // efs_d_read_name("/bin/echo", 0, sizeof(str3), vaddr);
     // printk("Read from /bin/echo: %s\n", vaddr);
 
-    // // 读取 /bin/utils/hello
-    // efs_d_read_name("/bin/utils/hello", 0, sizeof(hello_str), vaddr);
-    // printk("Read from /bin/utils/hello: %s\n", vaddr);
+    // // 读取 /bin/lib/hello
+    // efs_d_read_name("/bin/lib/hello", 0, sizeof(hello_str), vaddr);
+    // printk("Read from /bin/lib/hello: %s\n", vaddr);
 
     // // 测试 /swapfile
     // printk("Creating /swapfile...\n");
@@ -401,5 +401,5 @@ static void __easy_fs_test()
 
 void easy_fs_test()
 {
-    thread_create(__easy_fs_test, NULL, "easy_fs_test");
+    kthread_create(__easy_fs_test, NULL, "easy_fs_test",NO_CPU_AFF);
 }

@@ -1,9 +1,9 @@
 #ifndef __SLEEPLOCK_H__
 #define __SLEEPLOCK_H__
-#include "utils/spinlock.h"
-#include "utils/semaphore.h"
+#include "lib/spinlock.h"
+#include "lib/semaphore.h"
 #include "core/proc.h"
-#include "utils/mutex.h"
+#include "lib/mutex.h"
 
 // 我们直接用互斥量来代替睡眠锁
 // 注意，睡眠锁只能在进程上下文使用！！！

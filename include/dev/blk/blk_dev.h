@@ -2,12 +2,12 @@
 #define __BLK_DEV_H__
 #include "std/stddef.h"
 
-#include "utils/list.h"
-#include "utils/list.h"
-#include "utils/hash.h"
-#include "utils/atomic.h"
-#include "utils/sleeplock.h"
-#include "utils/spinlock.h"
+#include "lib/list.h"
+#include "lib/list.h"
+#include "lib/hash.h"
+#include "lib/atomic.h"
+#include "lib/sleeplock.h"
+#include "lib/spinlock.h"
 
 #include "std/stddef.h"
 #include "core/proc.h"

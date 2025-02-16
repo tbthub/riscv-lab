@@ -1,9 +1,9 @@
 #ifndef __SEMAPHORE_H__
 #define __SEMAPHORE_H__
 
-#include "utils/fifo.h"
-#include "utils/spinlock.h"
-#include "utils/atomic.h"
+#include "lib/fifo.h"
+#include "lib/spinlock.h"
+#include "lib/atomic.h"
 
 typedef struct semaphore
 {

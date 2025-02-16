@@ -1,8 +1,8 @@
 #ifndef __FIFI_H__
 #define __FIFI_H__
-#include "utils/list.h"
+#include "lib/list.h"
 #include "std/stddef.h"
-#include "utils/list.h"
+#include "lib/list.h"
 
 struct fifo
 {

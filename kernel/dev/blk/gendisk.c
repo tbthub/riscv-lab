@@ -45,9 +45,9 @@ void gendisk_init(struct block_device *bd, const struct gendisk_operations *ops)
     gd_ops->write = (ops->write) ? (ops->write) : gen_write;
 
     bhash_init(&gd->bhash, gd);
-    thread_create(kthread_gen_start_io, gd, "gen_start_io");
+    kthread_create(kthread_gen_start_io, gd, "gen_start_io",NO_CPU_AFF);
 
-    thread_create(flush_bhash, &gd->bhash, "gen_flush_bhash");
+    kthread_create(flush_bhash, &gd->bhash, "gen_flush_bhash",NO_CPU_AFF);
 }
 
 // 这个重要

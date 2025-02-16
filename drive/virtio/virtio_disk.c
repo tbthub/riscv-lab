@@ -10,14 +10,14 @@
 #include "defs.h"
 #include "param.h"
 #include "mm/memlayout.h"
-#include "utils/spinlock.h"
-#include "utils/sleeplock.h"
+#include "lib/spinlock.h"
+#include "lib/sleeplock.h"
 #include "dev/blk/buf.h"
 #include "virtio.h"
 #include "mm/kmalloc.h"
 #include "dev/blk/blk_dev.h"
 #include "dev/devs.h"
-#include "utils/string.h"
+#include "lib/string.h"
 
 #define DISK_SIZE 100 * 1024 * 1024
 #define SECTOR_SIZE 512

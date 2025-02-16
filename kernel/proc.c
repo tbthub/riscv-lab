@@ -1,45 +1,39 @@
 #include "core/proc.h"
 #include "riscv.h"
 #include "mm/slab.h"
-#include "utils/string.h"
+#include "lib/string.h"
 #include "core/sched.h"
 #include "std/stdarg.h"
-#include "utils/list.h"
+#include "lib/list.h"
 #include "mm/kmalloc.h"
 
-struct pid_pool_struct pid_pool;
-extern spinlock_t load_lock;
-
-void swtch(struct context *, struct context *);
+static struct
+{
+  // 用于分配 pid 由于我们使用了slab回收的可以直接利用
+  int pids;
+  // 保护pids的递增
+  spinlock_t lock;
+} pid_pool;
 
 struct cpu cpus[NCPU];
 
-// 必须在禁用中断的情况下调用，
-// 防止与进程移动发生竞争，到不同的CPU。
-int cpuid()
+// 退出（ZOMBIE）后重新调度
+static void quit()
 {
-  int id = r_tp();
-  return id;
+    struct cpu *cpu = mycpu();
+    struct thread_info *thread = cpu->thread;
+
+    spin_lock(&thread->lock);
+
+    thread->state = ZOMBIE;
+    
+    list_add_tail(&thread->sched, &cpu->sched_list.out);
+
+    sched();
 }
 
-// 返回该 CPU 的 cpu 结构体。
-// 必须禁用中断。
-inline struct cpu *mycpu()
-{
-  int id = cpuid();
-  struct cpu *c = &cpus[id];
-  return c;
-}
-
-struct thread_info *myproc(void)
-{
-  push_off();
-  struct thread_info *thread = mycpu()->thread;
-  pop_off();
-  return thread;
-}
-
-void thread_exit()
+// 线程出口函数，由 thread_entry 执行完 func 后调用
+static void thread_exit()
 {
   struct thread_info *thread = myproc();
 
@@ -54,7 +48,7 @@ void thread_exit()
 }
 
 // 线程入口函数，用于执行传入的线程函数
-void thread_entry()
+static void thread_entry()
 {
   struct thread_info *thread = myproc();
   // 第一次需要释放锁
@@ -65,67 +59,8 @@ void thread_entry()
   thread_exit();
 }
 
-static inline void set_cpu_affinity(struct thread_info *thread, int cpu_id)
-{
-  thread->cpu_affinity = cpu_id;
-}
-
-void thread_create_affinity(void (*func)(void *), void *args, const char *name, int cpu_affinity)
-{
-  struct thread_info *new_thread;
-  new_thread = alloc_thread();
-  if (!new_thread)
-    panic("thread_create error!\n");
-
-  new_thread->state = RUNNABLE;
-  strncpy(new_thread->name, name, 16);
-  new_thread->context.ra = (uint64)thread_entry;
-  new_thread->func = func;
-  new_thread->args = args;
-  set_cpu_affinity(new_thread, cpu_affinity);
-  // printk("Thread created: %s\n", name);
-  // 加入到CPU的调度队列中
-  add_runnable_task(new_thread);
-}
-// 我们的内核线程暂时不加参数，以后再说
-// 线程创建函数
-void thread_create(void (*func)(void *), void *args, const char *name)
-{
-  struct thread_info *new_thread;
-  new_thread = alloc_thread();
-  if (!new_thread)
-    panic("thread_create error!\n");
-
-  new_thread->state = RUNNABLE;
-  strncpy(new_thread->name, name, 16);
-  new_thread->context.ra = (uint64)thread_entry;
-  new_thread->func = func;
-  new_thread->args = args;
-  // printk("Thread created: %s\n", name);
-  // 加入到CPU的调度队列中
-  add_runnable_task(new_thread);
-}
-
-// 为每一个CPU都加上一e个idle进程
-// 只能由一个CPU来调用
-void sched_init()
-{
-  spin_init(&pid_pool.lock, "pid_pool");
-  spin_init(&load_lock, "load_lock");
-  pid_pool.pids = 0;
-
-  // 每个CPU都有一个指针指向这个idle
-  for (int i = 0; i < NCPU; i++)
-  {
-    spin_init(&cpus[i].sched_list.lock, "sched_list");
-    INIT_LIST_HEAD(&cpus[i].sched_list.run);
-    INIT_LIST_HEAD(&cpus[i].sched_list.out);
-    // cpus[i].idle = idle_thread;
-  }
-}
-
 // 申请一个空白的PCB，包括 thread_info + task_struct
-struct thread_info *alloc_thread()
+static struct thread_info *alloc_thread()
 {
   struct task_struct *task = kmem_cache_alloc(&task_struct_kmem_cache);
   if (!task)
@@ -149,15 +84,59 @@ struct thread_info *alloc_thread()
   thread->ticks = 10;
   thread->args = NULL;
   thread->func = NULL;
-  thread->cpu_affinity = no_cpu_affinity;
+  // thread->cpu_affinity = NO_CPU_AFF;
 
   INIT_LIST_HEAD(&thread->sched);
   memset(&thread->context, 0, sizeof(thread->context));
   // thread->context.ra = NULL;
-  thread->context.sp = (uint64)thread + 2 * PGSIZE - 1;
+  // thread->context.sp = (uint64)thread + 2 * PGSIZE - 1;
 
   spin_init(&thread->task->lock, "thread");
   thread->task->pagetable = NULL;
   thread->task->sz = 0;
   return thread;
+}
+
+
+
+struct thread_info *thread_struct_init()
+{
+  struct thread_info *t = alloc_thread();
+  if (!t)
+  {
+    printk("thread_struct_init error!\n");
+    return NULL;
+  }
+  t->context.ra = (uint64)thread_entry;
+  return t;
+}
+
+// 获取 cpuid
+// * 必须在关中断环境下,防止与进程移动发生竞争，到不同的CPU。
+inline int cpuid()
+{
+  return r_tp();
+}
+
+// 返回该 CPU 的 cpu 结构体。
+// * 必须在关中断环境下。
+inline struct cpu *mycpu()
+{
+  int id = cpuid();
+  struct cpu *c = &cpus[id];
+  return c;
+}
+
+struct thread_info *myproc(void)
+{
+  push_off();
+  struct thread_info *thread = mycpu()->thread;
+  pop_off();
+  return thread;
+}
+
+void proc_init()
+{
+  spin_init(&pid_pool.lock, "pid_pool");
+  pid_pool.pids = 0;
 }

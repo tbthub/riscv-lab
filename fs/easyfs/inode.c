@@ -1,10 +1,10 @@
 #include "mm/mm.h"
 #include "easyfs.h"
-#include "utils/string.h"
+#include "lib/string.h"
 #include "dev/blk/blk_dev.h"
 #include "mm/slab.h"
-#include "utils/math.h"
-#include "utils/atomic.h"
+#include "lib/math.h"
+#include "lib/atomic.h"
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 

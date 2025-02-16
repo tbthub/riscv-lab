@@ -3,7 +3,7 @@
 #include "defs.h"
 #include "riscv.h"
 #include "dev/uart.h"
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 #include "dev/cons.h"
 #include "core/proc.h"
 

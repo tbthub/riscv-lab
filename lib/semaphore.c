@@ -1,9 +1,9 @@
-#include "utils/semaphore.h"
-#include "utils/fifo.h"
-#include "utils/spinlock.h"
+#include "lib/semaphore.h"
+#include "lib/fifo.h"
+#include "lib/spinlock.h"
 #include "core/proc.h"
 #include "core/sched.h"
-#include "utils/atomic.h"
+#include "lib/atomic.h"
 #include "riscv.h"
 
 void sem_init(semaphore_t *sem, int value, const char *name)
@@ -25,7 +25,7 @@ void sem_wait(semaphore_t *sem)
         // 在加入等待队列之前，释放信号量锁，防止死锁
         spin_lock(&thread->lock);
 
-        fifo_push(&sem->waiters, &thread->waiter);
+        fifo_push(&sem->waiters, &thread->sched);
 
         spin_unlock(&sem->lock);
         thread->state = SLEEPING;
@@ -49,7 +49,7 @@ void sem_signal(semaphore_t *sem)
         struct list_head *waiter = fifo_pop(&sem->waiters);
         if (waiter != NULL)
         {
-            struct thread_info *thread = list_entry(waiter, struct thread_info, waiter);
+            struct thread_info *thread = list_entry(waiter, struct thread_info, sched);
             wakeup_process(thread);
         }
         else

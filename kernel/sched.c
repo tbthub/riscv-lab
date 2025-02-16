@@ -1,25 +1,28 @@
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 #include "core/proc.h"
 #include "core/sched.h"
 #include "riscv.h"
 #include "std/stddef.h"
-#include "utils/atomic.h"
+#include "lib/atomic.h"
+#include "lib/string.h"
 
 // 0号进程也就是第一个内核线程，负责初始化部分内容后作为调度器而存在
 
 // 为每一个cpu分配一个调度队列
 // 在顶层以后可以加一个负载均衡的分配器
 // 负责分发不同的任务，现在为了简单就直接轮转加入
-// 每个CPU不可能访问其他CPU的队列，因此不必加锁
+
+// 负载均衡器，这里暂时轮转分配(有点性能问题)
+spinlock_t load_lock;
+int load_cpu_id = -1;
 
 // switch.S
-void swtch(struct context *, struct context *);
+extern void swtch(struct context *, struct context *);
 
 // 从调度队列中选择下一个要执行的线程
 // 如果有其他进程，则选择其他的
-struct thread_info *pick_next_task(struct list_head *run_list)
+static struct thread_info *pick_next_task(struct list_head *run_list)
 {
-    // printk("SCHED RUNANLE: %d\n", list_len(&mycpu()->sched_list.run));
     struct thread_info *thread;
     if (list_empty(run_list))
         return NULL;
@@ -32,17 +35,13 @@ struct thread_info *pick_next_task(struct list_head *run_list)
     return NULL;
 }
 
-// 负载均衡器，这里暂时轮转分配(有点性能问题)
-spinlock_t load_lock;
-int load_cpu_id = -1;
-
-void add_runnable_task(struct thread_info *thread)
+static void add_runnable_task(struct thread_info *thread)
 {
     int cpuid;
     int cpu_affinity = thread->cpu_affinity;
 
     spin_lock(&load_lock);
-    if (cpu_affinity == no_cpu_affinity)
+    if (cpu_affinity == NO_CPU_AFF)
         cpuid = load_cpu_id = (load_cpu_id + 1) % NCPU;
     else
         cpuid = cpu_affinity;
@@ -56,13 +55,41 @@ void add_runnable_task(struct thread_info *thread)
     spin_unlock(&cpus[cpuid].sched_list.lock);
 }
 
-void debug_cpu_shed_list()
+void sched(void)
 {
-    printk("\nCPU shed list:\n");
-    for (int i = 0; i < NCPU; i++)
-    {
-        printk("cpu %d len %d\n", i, list_len(&cpus[i].sched_list.run));
-    }
+    int intena;
+    struct thread_info *thread = myproc();
+
+    if (!holding(&thread->lock))
+        panic("sched p->lock");
+    if (thread->state == RUNNING)
+        panic("sched running");
+    if (intr_get())
+        panic("sched interruptible");
+
+    intena = mycpu()->intena;
+    // printk("Thread %s switch to scheduler in sched\n", thread->name);
+    swtch(&thread->context, &mycpu()->context);
+    spin_unlock(&thread->lock);
+    // printk("Thread %s releasing lock on cpu %d ret sched\n", thread->name, cpuid());
+
+    mycpu()->intena = intena;
+}
+
+// 从进程上下文切换到调度线程（主线程）
+// 进程交换上下文后中断返回
+void yield()
+{
+    // printk("-----------timer interrupt yield!!!--------------\n");
+    struct thread_info *thread = myproc();
+
+    // printk("Thread %s acquiring lock on cpu %d in yield\n", thread->name, cpuid());
+    spin_lock(&thread->lock);
+    thread->ticks = 10;
+    thread->state = RUNNABLE;
+    add_runnable_task(thread);
+    // list_add_tail(&thread->sched, &mycpu()->sched_list.run);
+    sched();
 }
 
 void scheduler()
@@ -112,52 +139,17 @@ void scheduler()
     }
 }
 
-void sched(void)
+
+void sched_init()
 {
-    int intena;
-    struct thread_info *thread = myproc();
-
-    if (!holding(&thread->lock))
-        panic("sched p->lock");
-    if (thread->state == RUNNING)
-        panic("sched running");
-    if (intr_get())
-        panic("sched interruptible");
-
-    intena = mycpu()->intena;
-    // printk("Thread %s switch to scheduler in sched\n", thread->name);
-    swtch(&thread->context, &mycpu()->context);
-    spin_unlock(&thread->lock);
-    // printk("Thread %s releasing lock on cpu %d ret sched\n", thread->name, cpuid());
-
-    mycpu()->intena = intena;
-}
-
-// Give up the CPU for one scheduling round.
-// 从进程上下文切换到调度线程（主线程）
-// 进程交换上下文后中断返回
-void yield()
-{
-    // printk("-----------timer interrupt yield!!!--------------\n");
-    struct thread_info *thread = myproc();
-
-    // printk("Thread %s acquiring lock on cpu %d in yield\n", thread->name, cpuid());
-    spin_lock(&thread->lock);
-    thread->ticks = 10;
-    thread->state = RUNNABLE;
-    add_runnable_task(thread);
-    // list_add_tail(&thread->sched, &mycpu()->sched_list.run);
-    sched();
-}
-
-void quit()
-{
-    struct thread_info *thread = myproc();
-    struct cpu *cpu = mycpu();
-    spin_lock(&thread->lock);
-    thread->state = ZOMBIE;
-    list_add_tail(&thread->sched, &cpu->sched_list.out);
-    sched();
+    spin_init(&load_lock, "load_lock");
+    // 每个CPU都有一个指针指向这个idle
+    for (int i = 0; i < NCPU; i++)
+    {
+        spin_init(&cpus[i].sched_list.lock, "sched_list");
+        INIT_LIST_HEAD(&cpus[i].sched_list.run);
+        INIT_LIST_HEAD(&cpus[i].sched_list.out);
+    }
 }
 
 void wakeup_process(struct thread_info *thread)
@@ -168,4 +160,38 @@ void wakeup_process(struct thread_info *thread)
     add_runnable_task(thread);
     spin_unlock(&thread->lock);
     // printk("Thread %s releasing lock on cpu %d in wakeup\n", thread->name, cpuid());
+}
+
+void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_affinity)
+{
+    if (cpu_affinity < NO_CPU_AFF || cpu_affinity >= NCPU)
+    {
+        printk("Please pass in a suitable cpu_affinity value, "
+               "the default value is 'NO_CPU_AFF'.\n"
+               "The value you pass in is %d\n",
+               cpu_affinity);
+        return;
+    }
+    struct thread_info *t = thread_struct_init();
+    if (!t)
+    {
+        printk("kthread_create\n");
+        return;
+    }
+    t->func = func;
+    t->args = args;
+    strncpy(t->name, name, 16);
+    t->cpu_affinity = cpu_affinity;
+    t->context.sp = (uint64)t + 2 * PGSIZE - 1;
+    
+    wakeup_process(t);
+}
+
+__attribute__((unused)) void debug_cpu_shed_list()
+{
+    printk("\nCPU shed list:\n");
+    for (int i = 0; i < NCPU; i++)
+    {
+        printk("cpu %d len %d\n", i, list_len(&cpus[i].sched_list.run));
+    }
 }

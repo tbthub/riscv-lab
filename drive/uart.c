@@ -1,10 +1,10 @@
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 #include "defs.h"
 #include "riscv.h"
 #include "mm/memlayout.h"
 #include "std/stddef.h"
 #include "std/stdio.h"
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the

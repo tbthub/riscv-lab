@@ -9,15 +9,15 @@
 #include "mm/mm.h"
 #include "mm/kmalloc.h"
 
-#include "utils/math.h"
-#include "utils/fifo.h"
-#include "utils/atomic.h"
-#include "utils/string.h"
-#include "utils/semaphore.h"
+#include "lib/math.h"
+#include "lib/fifo.h"
+#include "lib/atomic.h"
+#include "lib/string.h"
+#include "lib/semaphore.h"
 
-#include "core/sched.h"
-#include "core/proc.h"
 #include "core/trap.h"
+#include "core/proc.h"
+#include "core/sched.h"
 
 #include "dev/plic.h"
 #include "dev/uart.h"
@@ -38,6 +38,8 @@ void main()
           kvm_init();
           trap_init();
           plic_init();
+          
+          proc_init();
           sched_init();
 
           kvm_init_hart();

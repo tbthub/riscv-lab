@@ -1,5 +1,5 @@
-#include "utils/bitmap.h"
-#include "utils/string.h"
+#include "lib/bitmap.h"
+#include "lib/string.h"
 #include "mm/kmalloc.h"
 
 void bitmap_init(struct bitmap *bmp, uint64 *map, int size_bits)

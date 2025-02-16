@@ -1,7 +1,7 @@
 #ifndef __TIMER_H__
 #define __TIMER_H__
 #include "std/stddef.h"
-#include "utils/list.h"
+#include "lib/list.h"
 #include "core/proc.h"
 typedef uint64 ticks_t;
 

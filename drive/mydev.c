@@ -1,7 +1,7 @@
 // #include "dev/blk/blk_dev.h"
 // #include "std/stdio.h"
 // #include "fs/bio.h"
-// #include "utils/string.h"
+// #include "lib/string.h"
 // #include "mm/mm.h"
 
 

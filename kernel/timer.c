@@ -2,9 +2,9 @@
 #include "mm/slab.h"
 #include "std/stdio.h"
 #include "core/proc.h"
-#include "utils/fifo.h"
+#include "lib/fifo.h"
 #include "core/work.h"
-#include "utils/sleeplock.h"
+#include "lib/sleeplock.h"
 #include "mm/kmalloc.h"
 
 static ticks_t sys_ticks;
@@ -40,7 +40,7 @@ static void timer_wake(timer_t *t)
     else if (t->block == TIMER_BLOCK) // 会堵塞，则创建内核线程
     {
         // printk("block -> thread\n");
-        thread_create(t->callback, t->args, "ktimer");
+        kthread_create(t->callback, t->args, "ktimer",NO_CPU_AFF);
     }
     else
         printk("timer.c [timer_wake]: TIMER_NO_BLOCK?TIMER_BLOCK");

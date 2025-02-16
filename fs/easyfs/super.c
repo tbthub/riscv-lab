@@ -1,7 +1,7 @@
 #include "easyfs.h"
 #include "mm/mm.h"
-#include "utils/string.h"
-#include "utils/bitmap.h"
+#include "lib/string.h"
+#include "lib/bitmap.h"
 #include "dev/blk/blk_dev.h"
 
 struct easy_m_super_block m_esb;
@@ -174,7 +174,7 @@ void efs_sb_init()
 {
     efs_sb_read();
     efs_sb_fill();
-    thread_create(efs_sync, NULL, "efs_sync");
+    kthread_create(efs_sync, NULL, "efs_sync",NO_CPU_AFF);
 }
 
 // 上面的函数都是初始化时使用，内核中已经确保不需要加锁。

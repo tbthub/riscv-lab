@@ -1,11 +1,11 @@
 #include "mm/page.h"
 #include "mm/memlayout.h"
-#include "utils/atomic.h"
+#include "lib/atomic.h"
 #include "defs.h"
-#include "utils/list.h"
+#include "lib/list.h"
 #include "riscv.h"
 #include "std/stdio.h"
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 #include "defs.h"
 
 // 需要持有 mem_map 锁

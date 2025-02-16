@@ -1,5 +1,5 @@
 #include "mm/slab.h"
-#include "utils/math.h"
+#include "lib/math.h"
 #include "mm/page.h"
 #include "core/proc.h"
 #include "dev/blk/buf.h"

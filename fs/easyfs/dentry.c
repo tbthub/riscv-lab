@@ -1,5 +1,5 @@
 #include "easyfs.h"
-#include "utils/string.h"
+#include "lib/string.h"
 #include "dev/blk/blk_dev.h"
 
 extern void efs_i_dup(struct easy_m_inode *inode);

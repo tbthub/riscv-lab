@@ -1,7 +1,7 @@
 #ifndef __FS_H__
 #define __FS_H__
-#include "utils/mutex.h"
-#include "utils/atomic.h"
+#include "lib/mutex.h"
+#include "lib/atomic.h"
 #include "../fs/easyfs/easyfs.h"
 
 #define FILE_READ (1 << 0)

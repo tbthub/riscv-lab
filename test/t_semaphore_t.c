@@ -1,4 +1,4 @@
-#include "utils/semaphore.h"
+#include "lib/semaphore.h"
 #include "std/stdio.h"
 #include "core/proc.h"
 static semaphore_t sem1;
@@ -55,9 +55,9 @@ void sem_test()
         sem_init(&sem2, 0, "test2");
         sem_init(&sem3, 0, "test3");
         sem_init(&sem4, 0, "test4");
-        thread_create(thread1, NULL, "thread_A");
-        thread_create(thread2, NULL, "thread_B");
-        thread_create(thread3, NULL, "thread_C");
-        thread_create(thread4, NULL, "thread_D");
+        kthread_create(thread1, NULL, "thread_A",NO_CPU_AFF);
+        kthread_create(thread2, NULL, "thread_B",NO_CPU_AFF);
+        kthread_create(thread3, NULL, "thread_C",NO_CPU_AFF);
+        kthread_create(thread4, NULL, "thread_D",NO_CPU_AFF);
     }
 }

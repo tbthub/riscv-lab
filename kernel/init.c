@@ -24,15 +24,15 @@ static void init_thread(void *)
 
     efs_mount(&virtio_disk);
     // easy_fs_test();
-    int *a = NULL;
-    printk("%d", *a);
+
     // while (1)
     //     ;
 }
 
 void init_s()
 {
-    thread_create(init_thread, NULL, "init_t");
+    kthread_create(init_thread,NULL,"init_t",NO_CPU_AFF);
+    // thread_create(init_thread, NULL, "init_t");
     // 测试设备
     // my_dev_init();
     // mvirt_blk_dev_init();

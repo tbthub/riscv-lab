@@ -19,7 +19,6 @@ OBJS += $(patsubst $(SRC_DIR)/%.S, $(BUILD_DIR)/%.o, $(SRCS_S))
 # 目录列表
 DIRS := $(sort $(dir $(OBJS)))
 
-
 # 尝试自动推断正确的工具链前缀
 ifndef TOOLPREFIX
 TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \

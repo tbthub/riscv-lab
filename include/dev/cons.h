@@ -1,6 +1,6 @@
 #ifndef __CONS_H__
 #define __CONS_H__
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 
 #define INPUT_BUF_SIZE 128
 

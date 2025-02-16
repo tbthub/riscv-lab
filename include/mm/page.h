@@ -3,10 +3,10 @@
 
 #include "std/stddef.h"
 #include "mm/memlayout.h"
-#include "utils/list.h"
-#include "utils/atomic.h"
+#include "lib/list.h"
+#include "lib/atomic.h"
 #include "mm/slab.h"
-#include "utils/spinlock.h"
+#include "lib/spinlock.h"
 
 /*
  *

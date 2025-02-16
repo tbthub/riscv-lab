@@ -1,9 +1,9 @@
 #include "mm/slab.h"
-#include "utils/string.h"
+#include "lib/string.h"
 #include "mm/mm.h"
 #include "mm/page.h"
 #include "riscv.h"
-#include "utils/math.h"
+#include "lib/math.h"
 #include "param.h"
 #include "core/proc.h"
 

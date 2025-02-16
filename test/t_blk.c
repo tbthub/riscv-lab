@@ -2,7 +2,7 @@
 #include "mm/mm.h"
 #include "dev/blk/blk_dev.h"
 #include "core/timer.h"
-#include "utils/string.h"
+#include "lib/string.h"
 
 extern struct block_device my_dev;
 extern struct block_device mvirt_blk_dev;
@@ -54,5 +54,5 @@ static void blk_test()
 
 void block_func_test()
 {
-    thread_create(blk_test, NULL, "blk_test");
+    kthread_create(blk_test, NULL, "blk_test",NO_CPU_AFF);
 }

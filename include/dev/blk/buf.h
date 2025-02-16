@@ -1,12 +1,12 @@
 #ifndef __BUF_H__
 #define __BUF_H__
 
-#include "utils/list.h"
-#include "utils/hash.h"
-#include "utils/atomic.h"
-#include "utils/spinlock.h"
-#include "utils/sleeplock.h"
-#include "utils/semaphore.h"
+#include "lib/list.h"
+#include "lib/hash.h"
+#include "lib/atomic.h"
+#include "lib/spinlock.h"
+#include "lib/sleeplock.h"
+#include "lib/semaphore.h"
 
 #include "std/stddef.h"
 #include "core/proc.h"
