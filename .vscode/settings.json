@@ -56,7 +56,8 @@
         "tuple": "c",
         "utility": "c",
         "random": "c",
-        "file.h": "c"
+        "file.h": "c",
+        "user.h": "c"
     },
     "workbench.list.horizontalScrolling": true
 }

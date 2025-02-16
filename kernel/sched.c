@@ -55,6 +55,7 @@ static void add_runnable_task(struct thread_info *thread)
     spin_unlock(&cpus[cpuid].sched_list.lock);
 }
 
+
 void sched(void)
 {
     int intena;
@@ -76,8 +77,7 @@ void sched(void)
     mycpu()->intena = intena;
 }
 
-// 从进程上下文切换到调度线程（主线程）
-// 进程交换上下文后中断返回
+// 从进程上下文切换到调度线程（主线程）, 进程交换上下文后中断返回
 void yield()
 {
     // printk("-----------timer interrupt yield!!!--------------\n");

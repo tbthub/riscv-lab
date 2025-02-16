@@ -3,6 +3,7 @@
 #include "core/work.h"
 #include "../test/t_head.h"
 #include "dev/devs.h"
+#include "../user/user.h"
 // extern void my_dev_init();
 // extern void flushd_start();
 
@@ -19,10 +20,11 @@ static void init_thread(void *)
     devs_init();
     work_queue_init();
     virtio_disk_init();
-
+    // exit(1,2,3,4,5);
     // block_func_test();   // 测试硬盘读写功能
 
     efs_mount(&virtio_disk);
+
     // easy_fs_test();
 
     // while (1)

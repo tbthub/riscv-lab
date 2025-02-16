@@ -127,7 +127,7 @@ inline struct cpu *mycpu()
   return c;
 }
 
-struct thread_info *myproc(void)
+struct thread_info *myproc()
 {
   push_off();
   struct thread_info *thread = mycpu()->thread;

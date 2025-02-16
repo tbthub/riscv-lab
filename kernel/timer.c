@@ -40,7 +40,7 @@ static void timer_wake(timer_t *t)
     else if (t->block == TIMER_BLOCK) // 会堵塞，则创建内核线程
     {
         // printk("block -> thread\n");
-        kthread_create(t->callback, t->args, "ktimer",NO_CPU_AFF);
+        kthread_create(t->callback, t->args, "ktimer", NO_CPU_AFF);
     }
     else
         printk("timer.c [timer_wake]: TIMER_NO_BLOCK?TIMER_BLOCK");
@@ -91,9 +91,18 @@ inline void time_update()
 {
     // 这个就算改不及时也没事，也就是说 CPU0改了后，
     // 哪怕CPU1看到的是以前的，也就只差一个时钟中断而已，很快就来了。没必要使用自旋锁
+
+    // if (cpuid() == 0)
+    //     sys_ticks++;
+    // timer_try_wake();
+
     if (cpuid() == 0)
         sys_ticks++;
-    timer_try_wake();
+    // TODO 每个cpu每3次唤醒一次，这样来说实际上是有点不能及时唤醒的，
+    // TODO 应该会差 1,2或者更多个（如果此时cpu还在关中断）时钟周期，但是这样可以大大减少唤醒次数
+    // TODO 这里没有必要对 sys_ticks 强加锁
+    if (sys_ticks % 3 == 0)
+        timer_try_wake();
 }
 
 static void assign_cpu(timer_t *t)

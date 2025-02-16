@@ -10,7 +10,9 @@ SRCS_S := $(shell find $(SRC_DIR) -type f -name '*.S' -not -path "$(SRC_DIR)/too
 
 # 目标文件列表
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS_C))
+# 移除 $(BUILD_DIR)/user/usys.o,避免重复添加
 OBJS += $(patsubst $(SRC_DIR)/%.S, $(BUILD_DIR)/%.o, $(SRCS_S))
+
 
 # 依赖文件列表
 # DEPS := $(OBJS:.o=.d)
@@ -44,8 +46,7 @@ CFLAGS = -Wall -O -Werror -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-common -nostdlib
 CFLAGS += -ffreestanding -nostdlib -nostdinc -I./include
 # CFLAGS += -MMD -MP
-LDFLAGS = -z max-page-size=4096
-
+LDFLAGS = -z max-page-size=4096 
 
 ASFLAGS =  -I. -I./include
 
@@ -73,23 +74,30 @@ default: $(BUILD_DIR)/$(KERNEL)
 $(DIRS):
 	@mkdir -p $@
 
+$(BUILD_DIR)/user/usys.o: $(SRC_DIR)/user/usys.pl
+	@mkdir -p $(BUILD_DIR)/user
+	perl -w $(SRC_DIR)/user/usys.pl > $(SRC_DIR)/user/usys.S
+	$(CC) $(CFLAGS) -c -o $@ $(SRC_DIR)/user/usys.S
+	@rm -f $(SRC_DIR)/user/usys.S
+
 # 编译
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(DIRS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.S | $(DIRS)
+$(BUILD_DIR)/%.o:  $(SRC_DIR)/%.S | $(DIRS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # 链接内核
-$(BUILD_DIR)/$(KERNEL): $(DIRS) $(OBJS) $(BOOT)/kernel.ld
-	$(LD) $(LDFLAGS) -T $(BOOT)/kernel.ld -o $@ $(OBJS)
+$(BUILD_DIR)/$(KERNEL): $(DIRS)  $(OBJS) $(BOOT)/kernel.ld  $(BUILD_DIR)/user/usys.o
+	$(LD) $(LDFLAGS) -T $(BOOT)/kernel.ld -o $@ $(OBJS) $(BUILD_DIR)/user/usys.o
 	$(OBJDUMP) -j .text -S $@ > $(BUILD_DIR)/kernel.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD_DIR)/kernel.sym
 
 # 清理
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)
+	@rm -f $(SRC_DIR)/user/usys.S
 
 # 启动内核
 qemu: $(BUILD_DIR)/$(KERNEL)
