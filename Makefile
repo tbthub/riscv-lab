@@ -46,7 +46,7 @@ CFLAGS = -Wall -O -Werror -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-common -nostdlib
 CFLAGS += -ffreestanding -nostdlib -nostdinc -I./include
 # CFLAGS += -MMD -MP
-LDFLAGS = -z max-page-size=4096 
+LDFLAGS = -z max-page-size=4096  
 
 ASFLAGS =  -I. -I./include
 

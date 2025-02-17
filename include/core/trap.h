@@ -4,7 +4,7 @@
 #define TIMER_SCAUSE 0x8000000000000005L
 #define EXTERNAL_SCAUSE 0x8000000000000009L
 
-void trap_init();
-void trap_inithart();
+extern void trap_init();
+extern void trap_inithart();
 
 #endif

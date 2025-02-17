@@ -9,7 +9,7 @@
 #include "core/timer.h"
 extern void virtio_disk_intr();
 // in kernelvec.S, calls kerneltrap().
-void kernelvec();
+extern void kernelvec();
 
 void trap_init()
 {
@@ -145,4 +145,9 @@ void kerneltrap()
 
     w_sepc(sepc);
     w_sstatus(sstatus);
+}
+
+void usertrap()
+{
+    printk("usertap\n");
 }

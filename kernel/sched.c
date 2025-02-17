@@ -55,7 +55,6 @@ static void add_runnable_task(struct thread_info *thread)
     spin_unlock(&cpus[cpuid].sched_list.lock);
 }
 
-
 void sched(void)
 {
     int intena;
@@ -119,6 +118,8 @@ void scheduler()
 #ifdef DEBUG_TASK_ON_CPU
             printk("thread: %s in running on hart %d\n", next->name, cpuid());
 #endif
+            // 设置 sscratch 为线程内核栈栈顶
+            w_sscratch((uint64)next + 2 * PGSIZE - 8);
             // printk("switch to thread: %s ra: %p sp: %p\n", next->name, next->context.ra, next->context.sp);
             swtch(&cpu->context, &next->context);
 
@@ -138,7 +139,6 @@ void scheduler()
         }
     }
 }
-
 
 void sched_init()
 {
@@ -182,8 +182,8 @@ void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_
     t->args = args;
     strncpy(t->name, name, 16);
     t->cpu_affinity = cpu_affinity;
-    t->context.sp = (uint64)t + 2 * PGSIZE - 1;
-    
+    t->context.sp = (uint64)t + 2 * PGSIZE - 8;
+
     wakeup_process(t);
 }
 
