@@ -6,6 +6,7 @@
 #include "lib/spinlock.h"
 #include "std/stddef.h"
 #include "defs.h"
+#include "core/vm.h"
 
 // 内核页表
 pagetable_t kernel_pagetable;
@@ -186,12 +187,12 @@ void kvm_init_hart()
 
 // 在进程虚存管理里面，我们将内核也映射到了用户页表
 // 所以大家都是在一个页表内,我们直接复制即可
-void copy_to_user(void *to, const void *from, uint64 len)
+inline void *copy_to_user(void *to, const void *from, uint64 len)
 {
-    memcpy(to, from, len);
+    return memcpy(to, from, len);
 }
 
-void copy_from_user(void *to, const void *from, uint64 len)
+inline void *copy_from_user(void *to, const void *from, uint64 len)
 {
-    memcpy(to, from, len);
+    return memcpy(to, from, len);
 }

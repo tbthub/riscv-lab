@@ -1,5 +1,4 @@
 // start() jumps here in supervisor mode on all CPUs.
-#include "vm.h"
 #include "defs.h"
 
 #include "std/stdio.h"
@@ -15,6 +14,7 @@
 #include "lib/string.h"
 #include "lib/semaphore.h"
 
+#include "core/vm.h"
 #include "core/trap.h"
 #include "core/proc.h"
 #include "core/sched.h"

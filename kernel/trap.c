@@ -10,6 +10,8 @@
 extern void virtio_disk_intr();
 // in kernelvec.S, calls kerneltrap().
 extern void kernelvec();
+extern void uservec();
+extern void userret();
 
 void trap_init()
 {
@@ -27,7 +29,7 @@ void trap_inithart(void)
     w_stvec((uint64)kernelvec);
 }
 
-void do_timer()
+static void do_timer()
 {
 
     time_update();
@@ -48,7 +50,8 @@ void do_timer()
     // printk("timer");
     w_stimecmp(r_time() + 500000);
 }
-void do_external()
+
+static void do_external()
 {
     int irq = plic_claim();
     if (irq == UART0_IRQ)
@@ -67,7 +70,7 @@ void do_external()
         plic_complete(irq);
 }
 
-int dev_intr()
+static int dev_intr()
 {
     uint64 scause = r_scause();
     switch (scause)
@@ -86,7 +89,43 @@ int dev_intr()
     }
 }
 
-// 内核中的处理函数 kernel_trap
+static void usertrapret(int is_syscall)
+{
+    struct thread_info *p = myproc();
+    // 我们即将把陷阱的目标从
+    // kerneltrap() 切换到 usertrap()，因此请关闭中断，直到
+    // 我们回到用户空间，此时 usertrap() 是正确的。(系统调用之前会开中断)
+    intr_off();
+    w_stvec((uint64)uservec);
+
+    // set S Previous Privilege mode to User.
+    unsigned long x = r_sstatus();
+    x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
+    x |= SSTATUS_SPIE; // enable interrupts in user mode
+    w_sstatus(x);
+
+    // 回到发生软中断的下一条指令，即越过 ecall 回到 sret
+    if (is_syscall)
+        w_sepc(r_sepc() + 4);
+
+    // 如果发生了进程切换
+    if (r_satp() != MAKE_SATP(p->task->pagetable))
+    {
+        //  更新 satp 寄存器和刷新 TLB
+        __asm__ volatile(
+            "sfence.vma zero, zero\n" // 清除 TLB（虚拟地址空间刷新）
+            "csrw satp, %0\n"         // 将新的 pagetable 地址写入 satp 寄存器
+            "sfence.vma zero, zero\n" // 再次清除 TLB
+            :                         // 无输出
+            : "r"(p->task->pagetable) // 输入: p->task->pagetable
+            : "memory"                // 告诉编译器该代码可能会修改内存
+        );
+    }
+    userret();
+}
+
+
+// 内核 trap 处理函数 kernel_trap
 void kerneltrap()
 {
     int which_dev = 0;            // 哪一个设备
@@ -94,13 +133,9 @@ void kerneltrap()
     uint64 sstatus = r_sstatus(); // sstatus: 保存当前的 sstatus 寄存器的值，sstatus 包含状态标志，例如当前的运行模式
     uint64 scause = r_scause();   // scause: 保存 scause 寄存器的值，scause 指示了异常或中断的原因
 
-    if ((sstatus & SSTATUS_SPP) == 0)
-    {
-        panic("kerneltrap: not from supervisor mode %d", sstatus & SSTATUS_SPP);
-    }
+    assert((sstatus & SSTATUS_SPP) != 0, "kerneltrap: not from supervisor mode %d", sstatus & SSTATUS_SPP);
+    assert(intr_get() == 0, "kerneltrap: interrupts enabled"); // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
 
-    if (intr_get() != 0) // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
-        panic("kerneltrap: interrupts enabled");
     uint64 stval;
     if ((which_dev = dev_intr()) == 0)
     {
@@ -147,7 +182,50 @@ void kerneltrap()
     w_sstatus(sstatus);
 }
 
+// 用户 trap 处理函数 user_trap
 void usertrap()
 {
-    printk("usertap\n");
+    int which_dev = 0;
+    int is_syscall = 0;
+    uint64 scause = r_scause();
+    
+    // 检查是否来自用户模式下的中断，也就是不是内核中断,确保中断来自用户态
+    assert((r_sstatus() & SSTATUS_SPP) == 0, "usertrap: not from user mode\n");
+
+    // 现在位于内核，要设置 stvec 为 kernelvec
+    w_stvec((uint64)kernelvec);
+    // (位于进程上下文的，别忘记了:-)
+    struct thread_info *p = myproc();
+
+    if (scause == 8)
+    { // 系统调用
+
+        // if (killed(p))
+        // exit(-1);
+
+        is_syscall = 1;
+
+        // intr_on();
+
+        // syscall();
+    }
+    else if ((which_dev = dev_intr()) != 0)
+    {
+        // ok
+    }
+    else
+    {
+        printk("usertrap(): unexpected scause 0x%p pid=%d\n", r_scause(), p->pid);
+        printk("            sepc=0x%p stval=0x%p\n", r_sepc(), r_stval());
+        // setkilled(p);
+    }
+
+    // if (killed(p))
+    // exit(-1);
+
+    // give up the CPU if this is a timer interrupt.
+    if (which_dev == 2)
+        yield();
+
+    usertrapret(is_syscall);
 }

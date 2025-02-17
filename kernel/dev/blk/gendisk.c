@@ -3,8 +3,10 @@
 #include "dev/blk/buf.h"
 #include "dev/blk/bio.h"
 #include "dev/blk/flush.h"
-#include "vm.h"
+
 #include "mm/mm.h"
+
+#include "core/vm.h"
 #include "core/timer.h"
 #define BLK_SIZE 4096
 
