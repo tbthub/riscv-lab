@@ -19,7 +19,7 @@ static struct
 } pid_pool;
 
 struct cpu cpus[NCPU];
-extern void usertrapret(int is_syscall);
+extern void usertrapret(int is_syscall, int first);
 
 // 退出（ZOMBIE）后重新调度
 static void quit()
@@ -104,7 +104,7 @@ static struct thread_info *alloc_thread()
 static void forkret()
 {
   spin_unlock(&myproc()->lock);
-  usertrapret(0);
+  usertrapret(0, 1);
 }
 
 struct thread_info *kthread_struct_init()

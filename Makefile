@@ -116,6 +116,8 @@ $(USER_SRC)/initcode: $(USER_SRC)/initcode.S
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $(USER_SRC)/initcode.out $(USER_SRC)/initcode.o
 	$(OBJCOPY) -S -O binary $(USER_SRC)/initcode.out $(USER_SRC)/initcode
 	$(OBJDUMP) -S $(USER_SRC)/initcode.o > $(USER_SRC)/initcode.asm
+	od -t xC $(USER_SRC)/initcode > $(USER_SRC)/initcode.text
+	@rm -f $(USER_SRC)/initcode.out $(USER_SRC)/initcode $(USER_SRC)/initcode.o $(USER_SRC)/initcode.asm
 
 # 清理
 .PHONY: clean

@@ -3,9 +3,7 @@
 
 #include "core/syscall.h"
 
-# exec(init, argv)
-        .globl user_start
-user_start:
-        li     a0, 0
-        li     a1, 0
+_start:
+        li    a7, SYS_getpid
         ecall
+        j     _start

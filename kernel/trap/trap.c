@@ -89,7 +89,7 @@ static int dev_intr()
     }
 }
 
-void usertrapret(int is_syscall)
+void usertrapret(int is_syscall, int first)
 {
     struct thread_info *p = myproc();
     // 我们即将把陷阱的目标从
@@ -99,17 +99,18 @@ void usertrapret(int is_syscall)
 
     w_stvec((uint64)uservec);
 
+    if (first)
+        w_sepc(USER_TEXT_BASE);
+
     // set S Previous Privilege mode to User.
     unsigned long x = r_sstatus();
     x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
     x |= SSTATUS_SPIE; // enable interrupts in user mode
     w_sstatus(x);
 
-
     // 回到发生软中断的下一条指令，即越过 ecall 回到 sret
-    // if (is_syscall)
-        // w_sepc(r_sepc() + 4);
-    w_sepc(USER_TEXT_BASE);
+    if (is_syscall)
+        w_sepc(r_sepc() + 4);
 
     // 如果发生了进程切换
     if (r_satp() != MAKE_SATP(p->task->pagetable))
@@ -199,6 +200,7 @@ void usertrap()
 
         // if (killed(p))
         // exit(-1);
+        printk("syscall\n");
 
         is_syscall = 1;
 
@@ -225,5 +227,5 @@ void usertrap()
     if (which_dev == 2)
         yield();
 
-    usertrapret(is_syscall);
+    usertrapret(is_syscall, 0);
 }

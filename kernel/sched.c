@@ -190,8 +190,7 @@ void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_
 }
 
 uchar initcode[] = {
-    0x13, 0x05, 0x00, 0x00, 0x93, 0x05, 0x00, 0x00};
-
+    0x93, 0x08, 0xb0, 0x00, 0x73, 0x00, 0x00, 0x00, 0x6f, 0xf0, 0x9f, 0xff};
 
 // 当切换到 forkret 的时候，这里的 sp 是为0，但是此时还处于用户模式，
 // 内核中如发生中断，则栈指针会有问题。
@@ -199,9 +198,9 @@ uchar initcode[] = {
 void user_init()
 {
     init_thread = uthread_struct_init();
-    w_sepc(USER_TEXT_BASE);
+    // w_sepc(USER_TEXT_BASE);
     w_sscratch(init_thread->context.sp);
-    *(uint64*)init_thread->context.sp = USER_STACK_BASE;
+    *(uint64 *)init_thread->context.sp = USER_STACK_BASE;
 
     init_thread->task->pagetable = alloc_pt();
     uvmfirst(init_thread, initcode, sizeof(initcode));
