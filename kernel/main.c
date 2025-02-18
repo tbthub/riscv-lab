@@ -45,10 +45,9 @@ void main()
           kvm_init_hart();
           trap_inithart();
           plic_inithart();
-
-          // buf_test();
-
+          user_init();
           init_s();
+
           // printk("hart 0 init_s ok\n");
           // printk("xv6 kernel is booting\n");
 

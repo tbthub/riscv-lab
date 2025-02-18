@@ -1,25 +1,37 @@
 # 变量定义
-BUILD_DIR := ./build
 SRC_DIR := .
-BOOT := ./boot
-KERNEL := Kernel
+BUILD_DIR := $(SRC_DIR)/build
+OUT_KERNEL_NAME := Kernel
 
-# 查找源文件，排除 tools 目录
-SRCS_C := $(shell find $(SRC_DIR) -type f -name '*.c' -not -path "$(SRC_DIR)/tools/*")
-SRCS_S := $(shell find $(SRC_DIR) -type f -name '*.S' -not -path "$(SRC_DIR)/tools/*")
+# 相关文件位置
+KERN_LD_SCRIPT := $(SRC_DIR)/boot/kernel.ld
+USER_LD_SCRIPT := $(SRC_DIR)/user/user.ld
+USER_SRC := $(SRC_DIR)/user
+EXT_TOOLS := $(SRC_DIR)/tools
 
+USYS :=$(SRC_DIR)/kernel/trap/usys
+
+USER_ELF_DIR := $(BUILD_DIR)/user/elf
+# kernel src
+# 查找源文件，排除 EXT_TOOLS  USER_SRC 目录
+K_SRCS_C := $(shell find $(SRC_DIR) -type f -name '*.c' -not -path "$(EXT_TOOLS)/*" -not -path "$(USER_SRC)/*")
+K_SRCS_S := $(shell find $(SRC_DIR) -type f -name '*.S' -not -path "$(EXT_TOOLS)/*" -not -path "$(USER_SRC)/*")
 # 目标文件列表
-OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS_C))
-# 移除 $(BUILD_DIR)/user/usys.o,避免重复添加
-OBJS += $(patsubst $(SRC_DIR)/%.S, $(BUILD_DIR)/%.o, $(SRCS_S))
+K_OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(K_SRCS_C))
+K_OBJS += $(patsubst $(SRC_DIR)/%.S, $(BUILD_DIR)/%.o, $(K_SRCS_S))
 
+# user src
+U_SRCS_C := $(shell find $(USER_SRC) -type f -name '*.c')
+U_SRCS_S := $(shell find $(USER_SRC) -type f -name '*.S')
+# 目标文件列表
+U_OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(U_SRCS_C))
+U_OBJS += $(patsubst $(SRC_DIR)/%.S, $(BUILD_DIR)/%.o, $(U_SRCS_S))
 
-# 依赖文件列表
-# DEPS := $(OBJS:.o=.d)
-# -include $(DEPS)
 
 # 目录列表
-DIRS := $(sort $(dir $(OBJS)))
+DIRS := $(sort $(dir $(K_OBJS)))
+DIRS += $(sort $(dir $(U_OBJS)))
+DIRS += $(USER_ELF_DIR)
 
 # 尝试自动推断正确的工具链前缀
 ifndef TOOLPREFIX
@@ -56,7 +68,7 @@ CPUS := 4
 
 QEMU = qemu-system-riscv64
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
-QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/$(KERNEL) -m 128M -smp $(CPUS) -nographic
+QEMUOPTS = -machine virt -bios none -kernel $(BUILD_DIR)/$(OUT_KERNEL_NAME) -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -serial mon:stdio
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=virtio_disk.img,if=none,format=raw,id=x0
@@ -68,17 +80,16 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
         else echo "-s -p $(GDBPORT)"; fi)
 
 # 默认目标
-default: $(BUILD_DIR)/$(KERNEL)
+default: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
 
 # 创建必要目录
 $(DIRS):
 	@mkdir -p $@
 
-$(BUILD_DIR)/user/usys.o: $(SRC_DIR)/user/usys.pl
-	@mkdir -p $(BUILD_DIR)/user
-	perl -w $(SRC_DIR)/user/usys.pl > $(SRC_DIR)/user/usys.S
-	$(CC) $(CFLAGS) -c -o $@ $(SRC_DIR)/user/usys.S
-	@rm -f $(SRC_DIR)/user/usys.S
+$(BUILD_DIR)/$(USYS).o: $(SRC_DIR)/$(USYS).pl
+	perl -w $(SRC_DIR)/$(USYS).pl > $(SRC_DIR)/$(USYS).S
+	$(CC) $(CFLAGS) -c -o $@ $(SRC_DIR)/$(USYS).S
+	@rm -f $(SRC_DIR)/$(USYS).S
 
 # 编译
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(DIRS)
@@ -87,27 +98,39 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(DIRS)
 $(BUILD_DIR)/%.o:  $(SRC_DIR)/%.S | $(DIRS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+USER:$(U_OBJS)
+	@for obj in $(U_OBJS); do \
+		$(CC) $(CFLAGS) $$obj -T $(USER_LD_SCRIPT) -o $(USER_ELF_DIR)/$$(basename $$obj .o).out; \
+		$(OBJDUMP) -t $(USER_ELF_DIR)/$$(basename $$obj .o).out -j .text -S > $(USER_ELF_DIR)/$$(basename $$obj .o).asm; \
+	done
+
 # 链接内核
-$(BUILD_DIR)/$(KERNEL): $(DIRS)  $(OBJS) $(BOOT)/kernel.ld  $(BUILD_DIR)/user/usys.o
-	$(LD) $(LDFLAGS) -T $(BOOT)/kernel.ld -o $@ $(OBJS) $(BUILD_DIR)/user/usys.o
+$(BUILD_DIR)/$(OUT_KERNEL_NAME): $(DIRS)  $(K_OBJS) $(KERN_LD_SCRIPT)  $(BUILD_DIR)/$(USYS).o USER
+	$(LD) $(LDFLAGS) -T $(KERN_LD_SCRIPT) -o $@ $(K_OBJS) $(BUILD_DIR)/$(USYS).o
+	# $(OBJCOPY) -S -O binary $@ $(BUILD_DIR)/$(OUT_KERNEL_NAME)_BIN
 	$(OBJDUMP) -j .text -S $@ > $(BUILD_DIR)/kernel.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD_DIR)/kernel.sym
+
+$(USER_SRC)/initcode: $(USER_SRC)/initcode.S
+	$(CC) $(CFLAGS) -march=rv64g -nostdinc -I . -I kernel -c $(USER_SRC)/initcode.S -o $(USER_SRC)/initcode.o
+	$(LD) $(LDFLAGS) -N -e start -Ttext 0 -o $(USER_SRC)/initcode.out $(USER_SRC)/initcode.o
+	$(OBJCOPY) -S -O binary $(USER_SRC)/initcode.out $(USER_SRC)/initcode
+	$(OBJDUMP) -S $(USER_SRC)/initcode.o > $(USER_SRC)/initcode.asm
 
 # 清理
 .PHONY: clean
 clean:
 	@rm -rf $(BUILD_DIR)
-	@rm -f $(SRC_DIR)/user/usys.S
 
 # 启动内核
-qemu: $(BUILD_DIR)/$(KERNEL)
+qemu: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
 	$(QEMU) $(QEMUOPTS)
 
-qemu-gdb: $(BUILD_DIR)/$(KERNEL)
+qemu-gdb: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
-gdb: $(BUILD_DIR)/$(KERNEL)
-	$(GDB) $(BUILD_DIR)/$(KERNEL) -q -ex "target remote :$(GDBPORT)" -ex "layout split"
+gdb: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
+	$(GDB) $(BUILD_DIR)/$(OUT_KERNEL_NAME) -q -ex "target remote :$(GDBPORT)" -ex "layout split"
 
 fs: virtio_disk.img
 	hexdump -C virtio_disk.img | less

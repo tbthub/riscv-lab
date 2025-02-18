@@ -11,7 +11,7 @@ extern void virtio_disk_intr();
 // in kernelvec.S, calls kerneltrap().
 extern void kernelvec();
 extern void uservec();
-extern void userret();
+extern void userret() __attribute__((noreturn));
 
 void trap_init()
 {
@@ -89,13 +89,14 @@ static int dev_intr()
     }
 }
 
-static void usertrapret(int is_syscall)
+void usertrapret(int is_syscall)
 {
     struct thread_info *p = myproc();
     // 我们即将把陷阱的目标从
     // kerneltrap() 切换到 usertrap()，因此请关闭中断，直到
     // 我们回到用户空间，此时 usertrap() 是正确的。(系统调用之前会开中断)
     intr_off();
+
     w_stvec((uint64)uservec);
 
     // set S Previous Privilege mode to User.
@@ -104,9 +105,11 @@ static void usertrapret(int is_syscall)
     x |= SSTATUS_SPIE; // enable interrupts in user mode
     w_sstatus(x);
 
+
     // 回到发生软中断的下一条指令，即越过 ecall 回到 sret
-    if (is_syscall)
-        w_sepc(r_sepc() + 4);
+    // if (is_syscall)
+        // w_sepc(r_sepc() + 4);
+    w_sepc(USER_TEXT_BASE);
 
     // 如果发生了进程切换
     if (r_satp() != MAKE_SATP(p->task->pagetable))
@@ -116,14 +119,13 @@ static void usertrapret(int is_syscall)
             "sfence.vma zero, zero\n" // 清除 TLB（虚拟地址空间刷新）
             "csrw satp, %0\n"         // 将新的 pagetable 地址写入 satp 寄存器
             "sfence.vma zero, zero\n" // 再次清除 TLB
-            :                         // 无输出
-            : "r"(p->task->pagetable) // 输入: p->task->pagetable
-            : "memory"                // 告诉编译器该代码可能会修改内存
+            :
+            : "r"(MAKE_SATP(p->task->pagetable)) // 输入: p->task->pagetable
+            : "memory"                           // 告诉编译器该代码可能会修改内存
         );
     }
     userret();
 }
-
 
 // 内核 trap 处理函数 kernel_trap
 void kerneltrap()
@@ -160,15 +162,10 @@ void kerneltrap()
             printk("scause: %p, stval: %p\n", scause, stval);
             break;
         default:
+            printk("scause: %p\n", scause);
             break;
         }
     }
-    // if ((which_dev = dev_intr()) == 0)
-    // {
-    //     // interrupt or trap from an unknown source
-    //     printk("scause=0x%lx sepc=0x%lx stval=0x%lx\n", scause, r_sepc(), r_stval());
-    //     panic("kerneltrap");
-    // }
 
     // give up the CPU if this is a timer interrupt.处理时钟中断（让出 CPU）
     if (which_dev == 2 && myproc() != 0 && myproc()->ticks == 0)
@@ -188,7 +185,7 @@ void usertrap()
     int which_dev = 0;
     int is_syscall = 0;
     uint64 scause = r_scause();
-    
+
     // 检查是否来自用户模式下的中断，也就是不是内核中断,确保中断来自用户态
     assert((r_sstatus() & SSTATUS_SPP) == 0, "usertrap: not from user mode\n");
 
@@ -215,6 +212,7 @@ void usertrap()
     }
     else
     {
+        printk("usertrap\n");
         printk("usertrap(): unexpected scause 0x%p pid=%d\n", r_scause(), p->pid);
         printk("            sepc=0x%p stval=0x%p\n", r_sepc(), r_stval());
         // setkilled(p);

@@ -7,6 +7,7 @@
 #include "std/stddef.h"
 #include "defs.h"
 #include "core/vm.h"
+#include "core/proc.h"
 
 // 内核页表
 pagetable_t kernel_pagetable;
@@ -128,12 +129,17 @@ static void kvm_map(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int per
         panic("vm.c kvm_map: Error!");
 }
 
+inline pagetable_t alloc_pt()
+{
+    return __alloc_page(0);
+}
+
 // 内核虚存初始化
 void kvm_init()
 {
     pagetable_t kpgtbl;
 
-    kpgtbl = (pagetable_t)__alloc_page(0);
+    kpgtbl = alloc_pt();
     if (!kpgtbl)
         panic("Failed to apply for kernel page table space!\n");
 
@@ -195,4 +201,24 @@ inline void *copy_to_user(void *to, const void *from, uint64 len)
 inline void *copy_from_user(void *to, const void *from, uint64 len)
 {
     return memcpy(to, from, len);
+}
+
+// Load the user initcode into address 0x200,000,000 of pagetable,
+// for the very first process.
+// sz must be less than a page.
+void uvmfirst(struct thread_info *init, uchar *src, uint sz)
+{
+    char *mem;
+    assert(sz <= PGSIZE, "uvmfirst: more than a page\n");
+
+    memcpy(init->task->pagetable, kernel_pagetable, PGSIZE / 64);
+
+    // 代码页
+    mem = __alloc_page(0);
+    mappages(init->task->pagetable, USER_TEXT_BASE, (uint64)mem, PGSIZE, PTE_R | PTE_X | PTE_U);
+    memcpy(mem, src, sz);
+
+    // 栈
+    mem = __alloc_page(0);
+    mappages(init->task->pagetable, USER_TEXT_BASE - 0x1000, (uint64)mem, PGSIZE, PTE_R | PTE_W | PTE_U);
 }

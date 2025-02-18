@@ -20,12 +20,9 @@ static void init_thread(void *)
     devs_init();
     work_queue_init();
     virtio_disk_init();
-    // exit(1,2,3,4,5);
-    // block_func_test();   // 测试硬盘读写功能
-
     efs_mount(&virtio_disk);
-
-    // easy_fs_test();
+    
+    
 
     // while (1)
     //     ;

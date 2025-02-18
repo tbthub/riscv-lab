@@ -20,6 +20,7 @@ extern void yield();
 extern void scheduler();
 
 extern void sched_init();
+extern void user_init();
 extern void wakeup_process(struct thread_info *thread);
 extern void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_affinity);
 extern void debug_cpu_shed_list() __attribute__((unused));

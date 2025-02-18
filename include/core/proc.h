@@ -104,6 +104,7 @@ extern void proc_init();
 extern int cpuid();
 extern struct cpu *mycpu();
 extern struct thread_info *myproc(void);
-extern struct thread_info *thread_struct_init();
+extern struct thread_info *kthread_struct_init();
+extern struct thread_info *uthread_struct_init();
 
 #endif

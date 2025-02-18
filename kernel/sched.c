@@ -5,6 +5,7 @@
 #include "std/stddef.h"
 #include "lib/atomic.h"
 #include "lib/string.h"
+#include "core/vm.h"
 
 // 0号进程也就是第一个内核线程，负责初始化部分内容后作为调度器而存在
 
@@ -16,6 +17,7 @@
 spinlock_t load_lock;
 int load_cpu_id = -1;
 
+static struct thread_info *init_thread;
 // switch.S
 extern void swtch(struct context *, struct context *);
 
@@ -172,7 +174,7 @@ void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_
                cpu_affinity);
         return;
     }
-    struct thread_info *t = thread_struct_init();
+    struct thread_info *t = kthread_struct_init();
     if (!t)
     {
         printk("kthread_create\n");
@@ -185,6 +187,30 @@ void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_
     t->context.sp = (uint64)t + 2 * PGSIZE - 8;
 
     wakeup_process(t);
+}
+
+uchar initcode[] = {
+    0x13, 0x05, 0x00, 0x00, 0x93, 0x05, 0x00, 0x00};
+
+
+// 当切换到 forkret 的时候，这里的 sp 是为0，但是此时还处于用户模式，
+// 内核中如发生中断，则栈指针会有问题。
+// 因此，初始化用户程序的时候必须要关中断的情况下进行
+void user_init()
+{
+    init_thread = uthread_struct_init();
+    w_sepc(USER_TEXT_BASE);
+    w_sscratch(init_thread->context.sp);
+    *(uint64*)init_thread->context.sp = USER_STACK_BASE;
+
+    init_thread->task->pagetable = alloc_pt();
+    uvmfirst(init_thread, initcode, sizeof(initcode));
+
+    init_thread->task->sz = PGSIZE;
+
+    strncpy(init_thread->name, "initcode", sizeof(init_thread->name));
+    init_thread->state = RUNNABLE;
+    add_runnable_task(init_thread);
 }
 
 __attribute__((unused)) void debug_cpu_shed_list()

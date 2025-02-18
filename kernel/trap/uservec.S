@@ -73,7 +73,7 @@ uservec:
 
 
 
-        .globl   userret
+.globl   userret
 userret:
 # userret(pagetable)
 # called by usertrapret() in trap.c to

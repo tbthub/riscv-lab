@@ -1,11 +1,14 @@
-#include "core/proc.h"
 #include "riscv.h"
 #include "mm/slab.h"
-#include "lib/string.h"
 #include "core/sched.h"
 #include "std/stdarg.h"
-#include "lib/list.h"
 #include "mm/kmalloc.h"
+
+#include "lib/list.h"
+#include "lib/string.h"
+
+#include "core/vm.h"
+#include "core/proc.h"
 
 static struct
 {
@@ -16,20 +19,21 @@ static struct
 } pid_pool;
 
 struct cpu cpus[NCPU];
+extern void usertrapret(int is_syscall);
 
 // 退出（ZOMBIE）后重新调度
 static void quit()
 {
-    struct cpu *cpu = mycpu();
-    struct thread_info *thread = cpu->thread;
+  struct cpu *cpu = mycpu();
+  struct thread_info *thread = cpu->thread;
 
-    spin_lock(&thread->lock);
+  spin_lock(&thread->lock);
 
-    thread->state = ZOMBIE;
-    
-    list_add_tail(&thread->sched, &cpu->sched_list.out);
+  thread->state = ZOMBIE;
 
-    sched();
+  list_add_tail(&thread->sched, &cpu->sched_list.out);
+
+  sched();
 }
 
 // 线程出口函数，由 thread_entry 执行完 func 后调用
@@ -97,17 +101,34 @@ static struct thread_info *alloc_thread()
   return thread;
 }
 
+static void forkret()
+{
+  spin_unlock(&myproc()->lock);
+  usertrapret(0);
+}
 
-
-struct thread_info *thread_struct_init()
+struct thread_info *kthread_struct_init()
 {
   struct thread_info *t = alloc_thread();
   if (!t)
   {
-    printk("thread_struct_init error!\n");
+    printk("kthread_struct_init error!\n");
     return NULL;
   }
   t->context.ra = (uint64)thread_entry;
+  return t;
+}
+
+struct thread_info *uthread_struct_init()
+{
+  struct thread_info *t = alloc_thread();
+  if (!t)
+  {
+    printk("uthread_struct_init error!\n");
+    return NULL;
+  }
+  t->context.ra = (uint64)forkret;
+  t->context.sp = (uint64)t + 2 * PGSIZE - 16;
   return t;
 }
 
