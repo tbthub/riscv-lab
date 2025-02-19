@@ -32,7 +32,7 @@ static struct thread_info *pick_next_task(struct list_head *run_list)
     // {
     //     printk("cpu0: sched len:%d\n", list_len(run_list));
     // }
-    list_for_each_entry(thread, run_list, sched)
+    list_for_each_entry_reverse(thread, run_list, sched)
     {
         // 找到一个可以运行的线程
         if (thread->state == RUNNABLE)
@@ -57,7 +57,7 @@ static void add_runnable_task(struct thread_info *thread)
     spin_unlock(&load_lock);
 
     spin_lock(&cpus[cpuid].sched_list.lock);
-    list_add_tail(&thread->sched, &(cpus[cpuid].sched_list.run));
+    list_add_head(&thread->sched, &(cpus[cpuid].sched_list.run));
     spin_unlock(&cpus[cpuid].sched_list.lock);
 }
 
