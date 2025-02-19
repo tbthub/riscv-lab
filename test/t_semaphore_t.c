@@ -51,7 +51,7 @@ void sem_test()
 {
     if (cpuid() == 0)
     {
-        sem_init(&sem1, 1, "test1");
+        sem_init(&sem1, 0, "test1");
         sem_init(&sem2, 0, "test2");
         sem_init(&sem3, 0, "test3");
         sem_init(&sem4, 0, "test4");

@@ -17,7 +17,7 @@
 spinlock_t load_lock;
 int load_cpu_id = -1;
 
-static struct thread_info *init_thread;
+struct thread_info *init_thread;
 // switch.S
 extern void swtch(struct context *, struct context *);
 
@@ -28,6 +28,10 @@ static struct thread_info *pick_next_task(struct list_head *run_list)
     struct thread_info *thread;
     if (list_empty(run_list))
         return NULL;
+    // if (cpuid() == 0)
+    // {
+    //     printk("cpu0: sched len:%d\n", list_len(run_list));
+    // }
     list_for_each_entry(thread, run_list, sched)
     {
         // 找到一个可以运行的线程
@@ -53,7 +57,7 @@ static void add_runnable_task(struct thread_info *thread)
     spin_unlock(&load_lock);
 
     spin_lock(&cpus[cpuid].sched_list.lock);
-    list_add_head(&thread->sched, &(cpus[cpuid].sched_list.run));
+    list_add_tail(&thread->sched, &(cpus[cpuid].sched_list.run));
     spin_unlock(&cpus[cpuid].sched_list.lock);
 }
 
@@ -62,12 +66,9 @@ void sched(void)
     int intena;
     struct thread_info *thread = myproc();
 
-    if (!holding(&thread->lock))
-        panic("sched p->lock");
-    if (thread->state == RUNNING)
-        panic("sched running");
-    if (intr_get())
-        panic("sched interruptible");
+    assert(holding(&thread->lock) != 0, "sched: not held p->lock");                                     // 确保持有锁
+    assert(thread->state != RUNNING, "sched: '%s' is running, state: %d", thread->name, thread->state); // 确保进程不在运行态
+    assert(intr_get() == 0, "sched interruptible");                                                     // 确保关中断
 
     intena = mycpu()->intena;
     // printk("Thread %s switch to scheduler in sched\n", thread->name);
@@ -120,8 +121,9 @@ void scheduler()
 #ifdef DEBUG_TASK_ON_CPU
             printk("thread: %s in running on hart %d\n", next->name, cpuid());
 #endif
+
             // 设置 sscratch 为线程内核栈栈顶
-            w_sscratch((uint64)next + 2 * PGSIZE - 8);
+            // w_sscratch((uint64)next + 2 * PGSIZE - 16);
             // printk("switch to thread: %s ra: %p sp: %p\n", next->name, next->context.ra, next->context.sp);
             swtch(&cpu->context, &next->context);
 
@@ -184,13 +186,14 @@ void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_
     t->args = args;
     strncpy(t->name, name, 16);
     t->cpu_affinity = cpu_affinity;
-    t->context.sp = (uint64)t + 2 * PGSIZE - 8;
 
     wakeup_process(t);
 }
 
+// uchar initcode[] = {
+// 0x93, 0x08, 0xb0, 0x00, 0x73, 0x00, 0x00, 0x00, 0x6f, 0xf0, 0x9f, 0xff};
 uchar initcode[] = {
-    0x93, 0x08, 0xb0, 0x00, 0x73, 0x00, 0x00, 0x00, 0x6f, 0xf0, 0x9f, 0xff};
+    0x13, 0x05, 0x10, 0x00, 0x93, 0x05, 0x10, 0x00, 0x6f, 0xf0, 0x9f, 0xff};
 
 // 当切换到 forkret 的时候，这里的 sp 是为0，但是此时还处于用户模式，
 // 内核中如发生中断，则栈指针会有问题。
@@ -198,9 +201,14 @@ uchar initcode[] = {
 void user_init()
 {
     init_thread = uthread_struct_init();
-    // w_sepc(USER_TEXT_BASE);
-    w_sscratch(init_thread->context.sp);
-    *(uint64 *)init_thread->context.sp = USER_STACK_BASE;
+
+    // init_thread->cpu_affinity = NO_CPU_AFF;
+    init_thread->cpu_affinity = 0;
+    // ! 这里只是设置了cpu0的w scratch，但是一旦进行切换，则新CPU的scratch为0会报错
+    // TODO 暂时可以简单的设置CPU亲和
+    w_sscratch(init_thread->context.sp + 248);
+
+    *(uint64 *)(init_thread->context.sp + 240) = USER_STACK_BASE;
 
     init_thread->task->pagetable = alloc_pt();
     uvmfirst(init_thread, initcode, sizeof(initcode));
@@ -208,8 +216,7 @@ void user_init()
     init_thread->task->sz = PGSIZE;
 
     strncpy(init_thread->name, "initcode", sizeof(init_thread->name));
-    init_thread->state = RUNNABLE;
-    add_runnable_task(init_thread);
+    wakeup_process(init_thread);
 }
 
 __attribute__((unused)) void debug_cpu_shed_list()

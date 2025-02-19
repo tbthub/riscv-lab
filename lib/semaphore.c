@@ -29,6 +29,7 @@ void sem_wait(semaphore_t *sem)
 
         spin_unlock(&sem->lock);
         thread->state = SLEEPING;
+
         sched();
     }
     else

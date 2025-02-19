@@ -19,7 +19,7 @@ static struct
 } pid_pool;
 
 struct cpu cpus[NCPU];
-extern void usertrapret(int is_syscall, int first);
+extern void usertrapret(uint64 spec);
 
 // 退出（ZOMBIE）后重新调度
 static void quit()
@@ -79,6 +79,8 @@ static struct thread_info *alloc_thread()
   spin_init(&thread->lock, "thread");
 
   thread->task = task;
+  thread->signal = 0;
+  thread->flags = 0;
   thread->state = USED;
 
   spin_lock(&pid_pool.lock);
@@ -101,10 +103,12 @@ static struct thread_info *alloc_thread()
   return thread;
 }
 
+// 这里应该是从 scheduler 的 swtch 进入
+// 在 scheduler 中获取了锁，这里需要释放
 static void forkret()
 {
   spin_unlock(&myproc()->lock);
-  usertrapret(0, 1);
+  usertrapret(USER_TEXT_BASE);
 }
 
 struct thread_info *kthread_struct_init()
@@ -116,6 +120,7 @@ struct thread_info *kthread_struct_init()
     return NULL;
   }
   t->context.ra = (uint64)thread_entry;
+  t->context.sp = (uint64)t + 2 * PGSIZE - 16;
   return t;
 }
 
@@ -127,8 +132,10 @@ struct thread_info *uthread_struct_init()
     printk("uthread_struct_init error!\n");
     return NULL;
   }
+
   t->context.ra = (uint64)forkret;
-  t->context.sp = (uint64)t + 2 * PGSIZE - 16;
+  // 上下文的这个设置成经过中断压栈后的地址
+  t->context.sp = (uint64)t + 2 * PGSIZE - 16 - 248;
   return t;
 }
 

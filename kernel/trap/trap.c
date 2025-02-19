@@ -11,7 +11,7 @@ extern void virtio_disk_intr();
 // in kernelvec.S, calls kerneltrap().
 extern void kernelvec();
 extern void uservec();
-extern void userret() __attribute__((noreturn));
+extern void userret();
 
 void trap_init()
 {
@@ -89,7 +89,7 @@ static int dev_intr()
     }
 }
 
-void usertrapret(int is_syscall, int first)
+void usertrapret(uint64 spec)
 {
     struct thread_info *p = myproc();
     // 我们即将把陷阱的目标从
@@ -98,33 +98,27 @@ void usertrapret(int is_syscall, int first)
     intr_off();
 
     w_stvec((uint64)uservec);
-
-    if (first)
-        w_sepc(USER_TEXT_BASE);
-
+    w_sepc(spec);
+    // printk("3\n");
     // set S Previous Privilege mode to User.
     unsigned long x = r_sstatus();
     x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
     x |= SSTATUS_SPIE; // enable interrupts in user mode
     w_sstatus(x);
 
-    // 回到发生软中断的下一条指令，即越过 ecall 回到 sret
-    if (is_syscall)
-        w_sepc(r_sepc() + 4);
-
+    // printk("4--SSTATUS_SPP_2: %d\n", (r_sstatus() & SSTATUS_SPP));
+    // printk("-1-%p-2-%p\n", r_satp(), MAKE_SATP(p->task->pagetable));
     // 如果发生了进程切换
     if (r_satp() != MAKE_SATP(p->task->pagetable))
     {
-        //  更新 satp 寄存器和刷新 TLB
-        __asm__ volatile(
-            "sfence.vma zero, zero\n" // 清除 TLB（虚拟地址空间刷新）
-            "csrw satp, %0\n"         // 将新的 pagetable 地址写入 satp 寄存器
-            "sfence.vma zero, zero\n" // 再次清除 TLB
-            :
-            : "r"(MAKE_SATP(p->task->pagetable)) // 输入: p->task->pagetable
-            : "memory"                           // 告诉编译器该代码可能会修改内存
-        );
+        // printk("5\n");
+        sfence_vma();
+        w_satp(MAKE_SATP(p->task->pagetable));
+        sfence_vma();
     }
+    // printk("6\n");
+    // printk("now: %p\n", r_satp());
+    // printk("SSTATUS_SPP_2: %d\n--------\n\n", (r_sstatus() & SSTATUS_SPP));
     userret();
 }
 
@@ -184,12 +178,14 @@ void kerneltrap()
 void usertrap()
 {
     int which_dev = 0;
-    int is_syscall = 0;
     uint64 scause = r_scause();
+    uint64 spec = r_sepc();
 
     // 检查是否来自用户模式下的中断，也就是不是内核中断,确保中断来自用户态
+    // printk("SSTATUS_SPP_1: %d\n", (r_sstatus() & SSTATUS_SPP));
     assert((r_sstatus() & SSTATUS_SPP) == 0, "usertrap: not from user mode\n");
-
+    assert(intr_get() == 0, "usertrap: interrupts enabled"); // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
+    
     // 现在位于内核，要设置 stvec 为 kernelvec
     w_stvec((uint64)kernelvec);
     // (位于进程上下文的，别忘记了:-)
@@ -200,11 +196,11 @@ void usertrap()
 
         // if (killed(p))
         // exit(-1);
-        printk("syscall\n");
 
-        is_syscall = 1;
+        // 返回到系统调用的下一条指令，即越过 ecall
+        spec += 4;
 
-        // intr_on();
+        intr_on();
 
         // syscall();
     }
@@ -223,9 +219,12 @@ void usertrap()
     // if (killed(p))
     // exit(-1);
 
-    // give up the CPU if this is a timer interrupt.
-    if (which_dev == 2)
+    // 用户程序切换的时候需要设置一些额外东西
+    if (which_dev == 2 && myproc() != 0 && myproc()->ticks == 0)
+    {
+        // printk("1\n");
         yield();
-
-    usertrapret(is_syscall, 0);
+    }
+    // printk("2\n");
+    usertrapret(spec);
 }

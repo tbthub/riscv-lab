@@ -105,6 +105,7 @@ void printk(const char *fmt, ...)
 // 关中断，死循环
 void panic(const char *fmt, ...)
 {
+    intr_off();
     spin_lock(&cons.lock);
     putstr("\n!!!\npanic on hart: ");
     putint(cpuid());
@@ -117,6 +118,7 @@ void panic(const char *fmt, ...)
     va_end(ap);
     putstr("!!!\n");
     spin_unlock(&cons.lock);
+    
     for (;;)
         ;
 }
@@ -125,6 +127,7 @@ void assert(int condition, const char *fmt, ...)
 {
     if (!condition)
     {
+        intr_off();
         spin_lock(&cons.lock);
         putstr("\n!!!\nassert on hart: ");
         putint(cpuid());

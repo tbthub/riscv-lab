@@ -22,8 +22,6 @@ static void init_thread(void *)
     virtio_disk_init();
     efs_mount(&virtio_disk);
     
-    
-
     // while (1)
     //     ;
 }

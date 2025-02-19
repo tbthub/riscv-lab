@@ -73,6 +73,7 @@ struct task_struct
   // struct inode *cwd;
 };
 
+#define T_READY (1 << 0)
 struct thread_info
 {
   struct task_struct *task;
@@ -81,6 +82,7 @@ struct thread_info
 
   // p->lock must be held when using these:
   uint64 signal;
+  uint32 flags;
   enum task_state state;
   pid_t pid;
   uint64 ticks;

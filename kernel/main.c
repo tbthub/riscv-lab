@@ -45,6 +45,7 @@ void main()
           kvm_init_hart();
           trap_inithart();
           plic_inithart();
+          
           user_init();
           init_s();
 
