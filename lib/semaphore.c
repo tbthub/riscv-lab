@@ -15,8 +15,7 @@ void sem_init(semaphore_t *sem, int value, const char *name)
 
 void sem_wait(semaphore_t *sem)
 {
-    // 模拟在中断上下文中运行，因此需要关中断，要快啊~
-    push_off();
+
     spin_lock(&sem->lock);
     atomic_dec(&sem->value);
     if (atomic_read(&sem->value) < 0)
@@ -29,15 +28,16 @@ void sem_wait(semaphore_t *sem)
 
         spin_unlock(&sem->lock);
         thread->state = SLEEPING;
-
+        // 模拟在中断上下文中运行，因此需要关中断，要快啊~
+        push_off();
         sched();
+        pop_off();
     }
     else
     {
         // 如果信号量大于 0，则直接释放锁
         spin_unlock(&sem->lock);
     }
-    pop_off();
 }
 
 void sem_signal(semaphore_t *sem)

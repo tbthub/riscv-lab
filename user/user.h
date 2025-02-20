@@ -1,6 +1,7 @@
 #ifndef __USER_H__
 #define __USER_H__
 
+
 // 系统调用
 extern int fork(void);
 extern int exit(int,int,int,int,int) __attribute__((noreturn));
@@ -23,5 +24,7 @@ extern int getpid(void);
 extern char *sbrk(int);
 extern int sleep(int);
 extern int uptime(void);
+
+extern int debug(void);
 
 #endif

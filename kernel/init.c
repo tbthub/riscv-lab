@@ -19,9 +19,9 @@ static void init_thread(void *)
 {
     devs_init();
     work_queue_init();
-    virtio_disk_init();
-    efs_mount(&virtio_disk);
-    
+    // virtio_disk_init();
+    // efs_mount(&virtio_disk);
+
     // while (1)
     //     ;
 }

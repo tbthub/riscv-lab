@@ -7,11 +7,12 @@
 #include "mm/memlayout.h"
 #include "dev/uart.h"
 #include "core/timer.h"
+#include "lib/semaphore.h"
 extern void virtio_disk_intr();
 // in kernelvec.S, calls kerneltrap().
 extern void kernelvec();
 extern void uservec();
-extern void userret();
+extern void userret() __attribute__((noreturn));
 
 void trap_init()
 {
@@ -89,7 +90,7 @@ static int dev_intr()
     }
 }
 
-void usertrapret()
+__attribute__((noreturn)) void usertrapret()
 {
     struct thread_info *p = myproc();
     // 我们即将把陷阱的目标从
@@ -101,15 +102,12 @@ void usertrapret()
     w_sepc(p->tf->epc);
     w_sscratch((uint64)(p->tf));
 
-    // printk("3\n");
     // set S Previous Privilege mode to User.
     unsigned long x = r_sstatus();
     x &= ~SSTATUS_SPP; // clear SPP to 0 for user mode
     x |= SSTATUS_SPIE; // enable interrupts in user mode
     w_sstatus(x);
 
-    // printk("4--SSTATUS_SPP_2: %d\n", (r_sstatus() & SSTATUS_SPP));
-    // printk("-1-%p-2-%p\n", r_satp(), MAKE_SATP(p->task->pagetable));
     // 如果发生了进程切换
     if (r_satp() != MAKE_SATP(p->task->pagetable))
     {
@@ -118,9 +116,6 @@ void usertrapret()
         w_satp(MAKE_SATP(p->task->pagetable));
         sfence_vma();
     }
-    // printk("6\n");
-    // printk("now: %p\n", r_satp());
-    // printk("SSTATUS_SPP_2: %d\n--------\n\n", (r_sstatus() & SSTATUS_SPP));
     userret();
 }
 
@@ -187,7 +182,7 @@ void usertrap()
     // printk("SSTATUS_SPP_1: %d\n", (r_sstatus() & SSTATUS_SPP));
     assert((r_sstatus() & SSTATUS_SPP) == 0, "usertrap: not from user mode\n");
     assert(intr_get() == 0, "usertrap: interrupts enabled"); // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
-    
+
     // 现在位于内核，要设置 stvec 为 kernelvec
     w_stvec((uint64)kernelvec);
     // (位于进程上下文的，别忘记了:-)
@@ -203,7 +198,7 @@ void usertrap()
         sepc += 4;
 
         intr_on();
-
+        
         // syscall();
     }
     else if ((which_dev = dev_intr()) != 0)

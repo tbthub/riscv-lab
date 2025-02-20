@@ -19,7 +19,7 @@ static struct
 } pid_pool;
 
 struct cpu cpus[NCPU];
-extern void usertrapret();
+extern void usertrapret() __attribute__((noreturn));
 
 // 退出（ZOMBIE）后重新调度
 static void quit()
