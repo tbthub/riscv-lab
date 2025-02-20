@@ -211,14 +211,18 @@ void uvmfirst(struct thread_info *init, uchar *src, uint sz)
     char *mem;
     assert(sz <= PGSIZE, "uvmfirst: more than a page\n");
 
+    // TODO 我们暂时直接首次复制顶层的内核页表，将其添加到用户页表中
     memcpy(init->task->pagetable, kernel_pagetable, PGSIZE / 64);
 
     // 代码页
     mem = __alloc_page(0);
-    mappages(init->task->pagetable, USER_TEXT_BASE, (uint64)mem, PGSIZE, PTE_R | PTE_X | PTE_U);
+    mappages(init->task->pagetable, USER_TEXT_BASE & 0xfffffffffffff000, (uint64)mem, PGSIZE, PTE_R | PTE_X | PTE_U);
     memcpy(mem, src, sz);
 
     // 栈
     mem = __alloc_page(0);
-    mappages(init->task->pagetable, USER_TEXT_BASE - 0x1000, (uint64)mem, PGSIZE, PTE_R | PTE_W | PTE_U);
+    mappages(init->task->pagetable, USER_STACK_TOP & 0xfffffffffffff000, (uint64)mem, PGSIZE, PTE_R | PTE_W | PTE_U);
+
+    init->tf->epc = USER_TEXT_BASE;
+    init->tf->sp = USER_STACK_TOP;
 }

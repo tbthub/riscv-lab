@@ -19,7 +19,7 @@ static struct
 } pid_pool;
 
 struct cpu cpus[NCPU];
-extern void usertrapret(uint64 spec);
+extern void usertrapret();
 
 // 退出（ZOMBIE）后重新调度
 static void quit()
@@ -87,6 +87,8 @@ static struct thread_info *alloc_thread()
   thread->pid = thread->pid == 0 ? pid_pool.pids++ : thread->pid;
   spin_unlock(&pid_pool.lock);
 
+  thread->tf = NULL;
+
   thread->ticks = 10;
   thread->args = NULL;
   thread->func = NULL;
@@ -95,7 +97,7 @@ static struct thread_info *alloc_thread()
   INIT_LIST_HEAD(&thread->sched);
   memset(&thread->context, 0, sizeof(thread->context));
   // thread->context.ra = NULL;
-  // thread->context.sp = (uint64)thread + 2 * PGSIZE - 1;
+  thread->context.sp = Kernel_stack_top(thread);
 
   spin_init(&thread->task->lock, "thread");
   thread->task->pagetable = NULL;
@@ -108,7 +110,7 @@ static struct thread_info *alloc_thread()
 static void forkret()
 {
   spin_unlock(&myproc()->lock);
-  usertrapret(USER_TEXT_BASE);
+  usertrapret();
 }
 
 struct thread_info *kthread_struct_init()
@@ -120,7 +122,6 @@ struct thread_info *kthread_struct_init()
     return NULL;
   }
   t->context.ra = (uint64)thread_entry;
-  t->context.sp = (uint64)t + 2 * PGSIZE - 16;
   return t;
 }
 
@@ -132,10 +133,14 @@ struct thread_info *uthread_struct_init()
     printk("uthread_struct_init error!\n");
     return NULL;
   }
-
+  t->tf = kmem_cache_alloc(&tf_kmem_cache);
+  if (!t->tf)
+  {
+    panic("uthread_struct_init tf_kmem_cache\n");
+    // printk("uthread_struct_init tf_kmem_cache\n");
+    // TODO 添加回收的逻辑，不过我们暂时先这样，不考虑异常，直接堵死
+  }
   t->context.ra = (uint64)forkret;
-  // 上下文的这个设置成经过中断压栈后的地址
-  t->context.sp = (uint64)t + 2 * PGSIZE - 16 - 248;
   return t;
 }
 

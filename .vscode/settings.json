@@ -57,7 +57,8 @@
         "utility": "c",
         "random": "c",
         "file.h": "c",
-        "user.h": "c"
+        "user.h": "c",
+        "stdarg.h": "c"
     },
     "workbench.list.horizontalScrolling": true
 }

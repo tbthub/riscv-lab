@@ -121,7 +121,6 @@ void scheduler()
 #ifdef DEBUG_TASK_ON_CPU
             printk("thread: %s in running on hart %d\n", next->name, cpuid());
 #endif
-
             // 设置 sscratch 为线程内核栈栈顶
             // w_sscratch((uint64)next + 2 * PGSIZE - 16);
             // printk("switch to thread: %s ra: %p sp: %p\n", next->name, next->context.ra, next->context.sp);
@@ -202,18 +201,16 @@ void user_init()
 {
     init_thread = uthread_struct_init();
 
-    // init_thread->cpu_affinity = NO_CPU_AFF;
-    init_thread->cpu_affinity = 0;
+    init_thread->cpu_affinity = NO_CPU_AFF;
     // ! 这里只是设置了cpu0的w scratch，但是一旦进行切换，则新CPU的scratch为0会报错
     // TODO 暂时可以简单的设置CPU亲和
-    w_sscratch(init_thread->context.sp + 248);
+    // w_sscratch(init_thread->context.sp + 248); // TODO 这句话移动到 usrtrapret
 
-    *(uint64 *)(init_thread->context.sp + 240) = USER_STACK_BASE;
-
+    init_thread->tf->kernel_sp = Kernel_stack_top(init_thread);
     init_thread->task->pagetable = alloc_pt();
-    uvmfirst(init_thread, initcode, sizeof(initcode));
-
     init_thread->task->sz = PGSIZE;
+
+    uvmfirst(init_thread, initcode, sizeof(initcode));
 
     strncpy(init_thread->name, "initcode", sizeof(init_thread->name));
     wakeup_process(init_thread);

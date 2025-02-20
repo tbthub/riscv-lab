@@ -89,7 +89,7 @@ static int dev_intr()
     }
 }
 
-void usertrapret(uint64 spec)
+void usertrapret()
 {
     struct thread_info *p = myproc();
     // 我们即将把陷阱的目标从
@@ -98,7 +98,9 @@ void usertrapret(uint64 spec)
     intr_off();
 
     w_stvec((uint64)uservec);
-    w_sepc(spec);
+    w_sepc(p->tf->epc);
+    w_sscratch((uint64)(p->tf));
+
     // printk("3\n");
     // set S Previous Privilege mode to User.
     unsigned long x = r_sstatus();
@@ -179,7 +181,7 @@ void usertrap()
 {
     int which_dev = 0;
     uint64 scause = r_scause();
-    uint64 spec = r_sepc();
+    uint64 sepc = r_sepc();
 
     // 检查是否来自用户模式下的中断，也就是不是内核中断,确保中断来自用户态
     // printk("SSTATUS_SPP_1: %d\n", (r_sstatus() & SSTATUS_SPP));
@@ -198,7 +200,7 @@ void usertrap()
         // exit(-1);
 
         // 返回到系统调用的下一条指令，即越过 ecall
-        spec += 4;
+        sepc += 4;
 
         intr_on();
 
@@ -225,6 +227,7 @@ void usertrap()
         // printk("1\n");
         yield();
     }
+    w_sepc(sepc);
     // printk("2\n");
-    usertrapret(spec);
+    usertrapret();
 }

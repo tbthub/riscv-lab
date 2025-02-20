@@ -46,8 +46,8 @@ void main()
           trap_inithart();
           plic_inithart();
           
-          user_init();
           init_s();
+          user_init();
 
           // printk("hart 0 init_s ok\n");
           // printk("xv6 kernel is booting\n");

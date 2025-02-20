@@ -23,7 +23,9 @@
 
 
 #define USER_TEXT_BASE 0x200000000  // 用户程序代码段基地址 0x200_000_000
-#define USER_STACK_BASE (0x200000000 - 16)  // 用户程序代码段基地址 0x200_000_000
+#define USER_STACK_TOP (0x200000000 - 0x1000 -0x8)  // 用户程序栈顶
+
+
 
 
 #endif
