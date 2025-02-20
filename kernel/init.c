@@ -19,27 +19,11 @@ static void init_thread(void *)
 {
     devs_init();
     work_queue_init();
-    // virtio_disk_init();
-    // efs_mount(&virtio_disk);
-
-    // while (1)
-    //     ;
+    virtio_disk_init();
+    efs_mount(&virtio_disk);
 }
 
 void init_s()
 {
     kthread_create(init_thread,NULL,"init_t",NO_CPU_AFF);
-    // thread_create(init_thread, NULL, "init_t");
-    // 测试设备
-    // my_dev_init();
-    // mvirt_blk_dev_init();
-
-    // block_func_test();
-    // flushd_start();
-    // block_func_test();
-
-    // work_queue_test();
-    // timer_test();
-
-    // bitmap_test();
 }

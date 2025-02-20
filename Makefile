@@ -9,8 +9,6 @@ USER_LD_SCRIPT := $(SRC_DIR)/user/user.ld
 USER_SRC := $(SRC_DIR)/user
 EXT_TOOLS := $(SRC_DIR)/tools
 
-USYS :=$(SRC_DIR)/kernel/trap/usys
-
 USER_ELF_DIR := $(BUILD_DIR)/user/elf
 # kernel src
 # 查找源文件，排除 EXT_TOOLS  USER_SRC 目录
@@ -86,10 +84,6 @@ default: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
 $(DIRS):
 	@mkdir -p $@
 
-$(BUILD_DIR)/$(USYS).o: $(SRC_DIR)/$(USYS).pl
-	perl -w $(SRC_DIR)/$(USYS).pl > $(SRC_DIR)/$(USYS).S
-	$(CC) $(CFLAGS) -c -o $@ $(SRC_DIR)/$(USYS).S
-	@rm -f $(SRC_DIR)/$(USYS).S
 
 # 编译
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(DIRS)
@@ -98,15 +92,9 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(DIRS)
 $(BUILD_DIR)/%.o:  $(SRC_DIR)/%.S | $(DIRS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-USER:$(U_OBJS)
-	@for obj in $(U_OBJS); do \
-		$(CC) $(CFLAGS) $$obj -T $(USER_LD_SCRIPT) -o $(USER_ELF_DIR)/$$(basename $$obj .o).out; \
-		$(OBJDUMP) -t $(USER_ELF_DIR)/$$(basename $$obj .o).out -j .text -S > $(USER_ELF_DIR)/$$(basename $$obj .o).asm; \
-	done
-
 # 链接内核
-$(BUILD_DIR)/$(OUT_KERNEL_NAME): $(DIRS)  $(K_OBJS) $(KERN_LD_SCRIPT)  $(BUILD_DIR)/$(USYS).o USER
-	$(LD) $(LDFLAGS) -T $(KERN_LD_SCRIPT) -o $@ $(K_OBJS) $(BUILD_DIR)/$(USYS).o
+$(BUILD_DIR)/$(OUT_KERNEL_NAME): $(DIRS)  $(K_OBJS) $(KERN_LD_SCRIPT)
+	$(LD) $(LDFLAGS) -T $(KERN_LD_SCRIPT) -o $@ $(K_OBJS) 
 	# $(OBJCOPY) -S -O binary $@ $(BUILD_DIR)/$(OUT_KERNEL_NAME)_BIN
 	$(OBJDUMP) -j .text -S $@ > $(BUILD_DIR)/kernel.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $(BUILD_DIR)/kernel.sym
@@ -117,7 +105,7 @@ $(USER_SRC)/initcode: $(USER_SRC)/initcode.S
 	$(OBJCOPY) -S -O binary $(USER_SRC)/initcode.out $(USER_SRC)/initcode
 	$(OBJDUMP) -S $(USER_SRC)/initcode.o > $(USER_SRC)/initcode.asm
 	od -t xC $(USER_SRC)/initcode > $(USER_SRC)/initcode.text
-	@rm -f $(USER_SRC)/initcode.out $(USER_SRC)/initcode $(USER_SRC)/initcode.o
+	rm -f $(USER_SRC)/initcode.out $(USER_SRC)/initcode $(USER_SRC)/initcode.o
 
 # 清理
 .PHONY: clean

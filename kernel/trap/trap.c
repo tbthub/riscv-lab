@@ -13,13 +13,14 @@ extern void virtio_disk_intr();
 extern void kernelvec();
 extern void uservec();
 extern void userret() __attribute__((noreturn));
+extern void syscall();
+
 
 void trap_init()
 {
     time_init();
 }
 
-// set up to take exceptions and traps while in the kernel.
 // 配置内核的异常和中断向量
 
 // 设置异常和中断的处理程序入口，具体是将 kernelvec 函数的地址写入到 stvec 寄存器中。
@@ -199,7 +200,7 @@ void usertrap()
 
         intr_on();
         
-        // syscall();
+        syscall();
     }
     else if ((which_dev = dev_intr()) != 0)
     {

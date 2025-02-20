@@ -58,7 +58,8 @@
         "random": "c",
         "file.h": "c",
         "user.h": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "syscall.h": "c"
     },
     "workbench.list.horizontalScrolling": true
 }

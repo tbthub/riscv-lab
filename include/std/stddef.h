@@ -32,6 +32,8 @@ typedef uint32 flags_t;
 #define CLEAR_FLAG(flags, flag) (*(flags) &= ~(flag))
 #define TEST_FLAG(flags, flag) (*(flags) & (flag))
 
+#define ENOSYS 38
+
 
 
 #endif
