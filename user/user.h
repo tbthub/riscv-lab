@@ -3,6 +3,7 @@
 
 
 // 系统调用
+extern int debug(void);
 extern int fork(void);
 extern int exit(int,int,int,int,int) __attribute__((noreturn));
 extern int wait(int *);
@@ -24,7 +25,5 @@ extern int getpid(void);
 extern char *sbrk(int);
 extern int sleep(int);
 extern int uptime(void);
-
-extern int debug(void);
 
 #endif

@@ -62,5 +62,5 @@ void syscall()
     struct thread_info *p = myproc();
     int n = p->tf->a7;
     p->tf->a0 = (uint64)syscalls[n]();
-    printk("p->tf->a0: %p\n",p->tf->a0);
+    // printk("p->tf->a0: %p\n",p->tf->a0);
 }

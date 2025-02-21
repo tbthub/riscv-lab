@@ -1,6 +1,11 @@
 #include "user.h"
 int main()
 {
-    int pid = getpid();
-    return pid;
+
+origin:
+
+   debug();
+
+   goto origin;
+   
 }

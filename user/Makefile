@@ -24,7 +24,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -O3 -Werror -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -O0 -Werror -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-common -nostdlib -ffunction-sections -fdata-sections
 CFLAGS += -ffreestanding -nostdlib -nostdinc -I../include
 LDFLAGS = -z max-page-size=4096

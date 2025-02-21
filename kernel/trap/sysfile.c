@@ -4,7 +4,7 @@
 
 extern int do_debug();
 extern int do_fork();
-extern int do_exec(const char *path, char *const argv[]) __attribute__((noreturn));
+extern int do_exec(const char *path, char *const argv[]);
 extern int do_exit(int status) __attribute__((noreturn)); // 退出状态码
 extern int do_sleep(uint64 ticks);
 extern int do_wait(int *status);
@@ -43,11 +43,11 @@ int sys_fork()
     return do_fork();
 }
 
-__attribute__((noreturn)) int sys_exec()
+int sys_exec()
 {
     uint64 args[2];
     get_args(args, 2);
-    do_exec((const char *)args[0], (char *const *)args[1]);
+    return do_exec((const char *)args[0], (char *const *)args[1]);
 }
 
 __attribute__((noreturn)) int sys_exit()

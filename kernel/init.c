@@ -4,6 +4,8 @@
 #include "../test/t_head.h"
 #include "dev/devs.h"
 #include "../user/user.h"
+#include "core/sched.h"
+
 // extern void my_dev_init();
 // extern void flushd_start();
 
@@ -21,6 +23,12 @@ static void init_thread(void *)
     work_queue_init();
     virtio_disk_init();
     efs_mount(&virtio_disk);
+    
+    // 初始化第一个用户线程
+    user_init();
+    // user_init2();
+    // user_init2();
+    // user_init2();
 }
 
 void init_s()

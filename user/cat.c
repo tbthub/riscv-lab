@@ -1,7 +1,13 @@
-// #include "user.h"
-extern int getpid(void);
+#include "user.h"
 int main()
 {
-    int pid = getpid();
-    return pid;
+
+   while (1)
+      ;
+
+   // origin:
+
+   //    debug();
+
+   //    goto origin;
 }

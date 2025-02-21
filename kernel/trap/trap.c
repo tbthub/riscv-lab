@@ -15,7 +15,6 @@ extern void uservec();
 extern void userret() __attribute__((noreturn));
 extern void syscall();
 
-
 void trap_init()
 {
     time_init();
@@ -50,7 +49,7 @@ static void do_timer()
     // spin_unlock(&cur->lock);
 
     // printk("timer");
-    w_stimecmp(r_time() + 500000);
+    w_stimecmp(r_time() + 250000);
 }
 
 static void do_external()
@@ -99,8 +98,8 @@ __attribute__((noreturn)) void usertrapret()
     // 我们回到用户空间，此时 usertrap() 是正确的。(系统调用之前会开中断)
     intr_off();
 
-    w_stvec((uint64)uservec);
     w_sepc(p->tf->epc);
+    w_stvec((uint64)uservec);
     w_sscratch((uint64)(p->tf));
 
     // set S Previous Privilege mode to User.
@@ -160,8 +159,10 @@ void kerneltrap()
         }
     }
 
-    // give up the CPU if this is a timer interrupt.处理时钟中断（让出 CPU）
-    if (which_dev == 2 && myproc() != 0 && myproc()->ticks == 0)
+    // 处理时钟中断（让出 CPU）
+    // * 注意，这里的 myproc 可能为空，因此需要检测
+    // * 不同与 usertrap，usertrap一定是位于进程上下文的，因此 myproc 一定存在
+    if (which_dev == 2 && myproc() != NULL && myproc()->ticks == 0)
         yield();
 
     // yield() 可能会导致一些新的异常或中断，因此在返回之前，需要恢复原来的 sepc 和 sstatus 值。
@@ -180,14 +181,15 @@ void usertrap()
     uint64 sepc = r_sepc();
 
     // 检查是否来自用户模式下的中断，也就是不是内核中断,确保中断来自用户态
-    // printk("SSTATUS_SPP_1: %d\n", (r_sstatus() & SSTATUS_SPP));
     assert((r_sstatus() & SSTATUS_SPP) == 0, "usertrap: not from user mode\n");
     assert(intr_get() == 0, "usertrap: interrupts enabled"); // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
 
     // 现在位于内核，要设置 stvec 为 kernelvec
     w_stvec((uint64)kernelvec);
+
     // (位于进程上下文的，别忘记了:-)
     struct thread_info *p = myproc();
+    assert(p != NULL, "usertrap: p is NULL\n");
 
     if (scause == 8)
     { // 系统调用
@@ -199,7 +201,7 @@ void usertrap()
         sepc += 4;
 
         intr_on();
-        
+
         syscall();
     }
     else if ((which_dev = dev_intr()) != 0)
@@ -218,12 +220,9 @@ void usertrap()
     // exit(-1);
 
     // 用户程序切换的时候需要设置一些额外东西
-    if (which_dev == 2 && myproc() != 0 && myproc()->ticks == 0)
-    {
-        // printk("1\n");
+    if (which_dev == 2 && p->ticks == 0)
         yield();
-    }
-    w_sepc(sepc);
-    // printk("2\n");
+
+    p->tf->epc = sepc;
     usertrapret();
 }

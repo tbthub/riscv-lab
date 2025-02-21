@@ -47,10 +47,6 @@ void main()
           plic_inithart();
           
           init_s();
-          user_init();
-
-          // printk("hart 0 init_s ok\n");
-          // printk("xv6 kernel is booting\n");
 
           __sync_synchronize();
           started = 1;

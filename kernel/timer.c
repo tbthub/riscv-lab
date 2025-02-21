@@ -100,7 +100,7 @@ inline void time_update()
         sys_ticks++;
     // TODO 每个cpu每3次唤醒一次，这样来说实际上是有点不能及时唤醒的，
     // TODO 应该会差 1,2或者更多个（如果此时cpu还在关中断）时钟周期，但是这样可以大大减少唤醒次数
-    // TODO 这里没有必要对 sys_ticks 强加锁
+    // TODO 这里没有必要对 sys_ticks 强加锁，这里仅仅暂时这样
     if (sys_ticks % 3 == 0)
         timer_try_wake();
 }
