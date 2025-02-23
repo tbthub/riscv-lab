@@ -111,10 +111,11 @@ __attribute__((noreturn)) void usertrapret()
     // 如果发生了进程切换
     if (r_satp() != MAKE_SATP(p->task->pagetable))
     {
-        // printk("5\n");
+        // printk("old satp: %p\n", r_satp());
         sfence_vma();
         w_satp(MAKE_SATP(p->task->pagetable));
         sfence_vma();
+        // printk("now satp: %p\n", r_satp());
     }
     userret();
 }

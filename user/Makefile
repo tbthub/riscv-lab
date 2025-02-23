@@ -35,7 +35,7 @@ default: all
 
 # OBJS 定义
 OBJS = \
-	$U/sh \
+	$U/debug \
 	$U/cat \
 
 # usys.S 文件生成规则

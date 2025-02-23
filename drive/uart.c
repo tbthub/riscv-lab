@@ -74,7 +74,7 @@ void uart_init()
 
 // 缓冲区内容输出
 // 将会唤醒那些因为缓冲区满而堵塞的线程
-void uart_start()
+static void uart_start()
 {
     while (1)
     {
@@ -148,6 +148,7 @@ int uart_getc()
         return ERR;
 }
 
+
 void uartintr()
 {
     int ch = uart_getc();
@@ -169,5 +170,5 @@ void uartintr()
     }
 
     uart_putc_sync(ch);
-    // printk("%d ",ch);
+    
 }

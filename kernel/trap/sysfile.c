@@ -2,7 +2,7 @@
 #include "core/proc.h"
 #include "lib/string.h"
 
-extern int do_debug();
+extern int do_debug(int a0, const char *a1, const void *a2, char *const a3[], uint64 a4, int a5);
 extern int do_fork();
 extern int do_exec(const char *path, char *const argv[]);
 extern int do_exit(int status) __attribute__((noreturn)); // 退出状态码
@@ -18,7 +18,7 @@ extern int do_sbrk();
 extern int do_uptime();
 extern int do_open(const char *path, int flags, int mode);
 extern int do_close(int fd);
-extern int do_read(int fd, void *buf, uint64 count);
+extern int do_read(int fd, const void *buf, uint64 count);
 extern int do_write(int fd, const void *buf, uint64 count);
 extern int do_mknod(const char *path, int mode, int dev);
 extern int do_unlink(const char *path);
@@ -29,13 +29,21 @@ extern int do_mkdir(const char *path);
 static void get_args(uint64 *args, int n)
 {
     struct thread_info *p = myproc();
-    memcpy(args, &p->tf->a0, n);
+    // args[0] = p->tf->a0;
+    // args[1] = p->tf->a1;
+    // args[2] = p->tf->a2;
+    // args[3] = p->tf->a3;
+    // args[4] = p->tf->a4;
+    // args[5] = p->tf->a5;
+    memcpy(args, &p->tf->a0, n * sizeof(uint64));
 }
-
 
 int sys_debug()
 {
-    return do_debug();
+    uint64 args[6];
+    get_args(args, 6);
+    return do_debug((int)args[0], (const char *)args[1], (const void *)args[2],
+                    (char *const *)args[3], (uint64)args[4], (int)args[5]);
 }
 
 int sys_fork()

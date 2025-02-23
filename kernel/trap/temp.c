@@ -1,9 +1,10 @@
 #include "std/stddef.h"
 #include "core/proc.h"
 
-
-int do_debug()
+int do_debug(int a0, const char *a1, const void *a2, char *const a3[], uint64 a4, int a5)
 {
+    // printk("a1: %p\n", a1);
+    // printk("args: %s", a1);
     return -ENOSYS;
 }
 

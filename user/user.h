@@ -1,9 +1,9 @@
 #ifndef __USER_H__
 #define __USER_H__
-
+typedef unsigned long uint64;
 
 // 系统调用
-extern int debug(void);
+extern int debug(int a0, const char *a1, const void *a2, char *const a3[], uint64 a4, int a5);
 extern int fork(void);
 extern int exit(int,int,int,int,int) __attribute__((noreturn));
 extern int wait(int *);

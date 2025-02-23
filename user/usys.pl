@@ -14,7 +14,7 @@ sub entry {
     print " ecall\n";
     print " ret\n";
 }
-	
+entry("debug");
 entry("fork");
 entry("exit");
 entry("wait");
@@ -38,4 +38,4 @@ entry("sleep");
 entry("uptime");
 
 
-entry("debug");
+
