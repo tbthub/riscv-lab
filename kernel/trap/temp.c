@@ -3,7 +3,20 @@
 
 int do_debug(int a0, const char *a1, const void *a2, char *const a3[], uint64 a4, int a5)
 {
-    printk("args: %s", a1);
+    // printk("sys_debug->do_debug args:\n");
+    // printk("a0: %d\n", a0);
+    // printk("a1: %s\n", a1);
+    // printk("a2: %p\n", a2);
+
+    // for (int i = 0;; i++)
+    // {
+    //     if (a3[i] == NULL)
+    //         break;
+    //     printk("a3: %s\n", a3[i]);
+    // }
+
+    // printk("a4: %p\n", a4);
+    // printk("a5: %d\n", a5);
     return -ENOSYS;
 }
 

@@ -29,12 +29,6 @@ extern int do_mkdir(const char *path);
 static void get_args(uint64 *args, int n)
 {
     struct thread_info *p = myproc();
-    // args[0] = p->tf->a0;
-    // args[1] = p->tf->a1;
-    // args[2] = p->tf->a2;
-    // args[3] = p->tf->a3;
-    // args[4] = p->tf->a4;
-    // args[5] = p->tf->a5;
     memcpy(args, &p->tf->a0, n * sizeof(uint64));
 }
 

@@ -174,6 +174,10 @@ void kerneltrap()
     w_sstatus(sstatus);
 }
 
+#define U_SYSCALL 0x8   // 系统调用
+// #define U_STORE_PF      // store 缺页中断
+// ....
+
 // 用户 trap 处理函数 user_trap
 void usertrap()
 {
@@ -192,19 +196,29 @@ void usertrap()
     struct thread_info *p = myproc();
     assert(p != NULL, "usertrap: p is NULL\n");
 
-    if (scause == 8)
-    { // 系统调用
-
+    switch (scause)
+    {
+    case U_SYSCALL: // 系统调用
         // if (killed(p))
         // exit(-1);
 
         // 返回到系统调用的下一条指令，即越过 ecall
         sepc += 4;
-
-        // 假如的话。。
         intr_on();
-
         syscall();
+        break;
+    case 12:
+        break;
+    case 13:
+        break;
+    case 15:
+        break;
+    default:
+        break;
+    }
+
+    if (scause == 8)
+    {
     }
     else if ((which_dev = dev_intr()) != 0)
     {

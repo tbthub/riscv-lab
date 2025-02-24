@@ -227,3 +227,31 @@ void uvmfirst(struct thread_info *init, uchar *src, uint sz)
     init->tf->epc = USER_TEXT_BASE;
     init->tf->sp = USER_STACK_TOP;
 }
+
+// // 设置页面为 cow
+// void set_cow_page()
+// {
+// }
+
+// static inline int is_cow_page(pte_t * pte)
+// {
+//     return *pte 
+// }
+
+// void page_fault_handler(uint64 vaddr)
+// {
+//     pte_t *f_pte = walk(r_satp(), vaddr, 0);
+//     if (!f_pte || !(*f_pte & PTE_V))
+//     {
+//         panic("Illegal access\n"); // 非法访问
+//         // kill_process(current);
+//         return;
+//     }
+//     if (is_cow_page(fault_pte))
+//     {
+//         // 触发COW操作
+//         handle_cow(fault_pte, fault_addr);
+//     }
+//     else
+//     {
+//     // 处理其他类型的缺页
