@@ -180,6 +180,7 @@ void kvm_init()
 // 并启用分页功能。
 void kvm_init_hart()
 {
+    w_sstatus(SSTATUS_SUM);
     // 等待之前对页表内存的任何写操作完成。
     sfence_vma();
 

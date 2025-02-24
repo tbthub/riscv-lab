@@ -201,6 +201,7 @@ void usertrap()
         // 返回到系统调用的下一条指令，即越过 ecall
         sepc += 4;
 
+        // 假如的话。。
         intr_on();
 
         syscall();
