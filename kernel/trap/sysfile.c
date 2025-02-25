@@ -25,6 +25,9 @@ extern int do_unlink(const char *path);
 extern int do_link();
 extern int do_mkdir(const char *path);
 
+extern int do_mmap();
+extern int do_munmap();
+
 // * 请确保在 trapframe 结构体中顺序放置 a0->a6
 static void get_args(uint64 *args, int n)
 {
@@ -169,4 +172,14 @@ int sys_close()
     uint64 args[1];
     get_args(args, 1);
     return do_close((int)args[0]);
+}
+
+int sys_mmap()
+{
+    return do_mmap();
+}
+
+int sys_munmap()
+{
+    return do_munmap();
 }

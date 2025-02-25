@@ -41,6 +41,7 @@ struct kmem_cache efs_inode_kmem_cache;
 struct kmem_cache efs_dentry_kmem_cache;
 struct kmem_cache file_kmem_cache;
 struct kmem_cache tf_kmem_cache;
+struct kmem_cache vma_kmem_cache;
 
 void kmalloc_init()
 {
@@ -65,6 +66,7 @@ void kmalloc_init()
     kmem_cache_create(&efs_dentry_kmem_cache, "dentry_kmem_cache", sizeof(struct easy_dentry), 0);
     kmem_cache_create(&file_kmem_cache, "file_kmem_cache", sizeof(struct file), 0);
     kmem_cache_create(&tf_kmem_cache, "tf_kmem_cache", sizeof(struct trapframe), 0);
+    kmem_cache_create(&vma_kmem_cache, "vma_kmem_cache", sizeof(struct vm_area_struct), 0);
 }
 
 void *kmalloc(int size, uint32 flags)

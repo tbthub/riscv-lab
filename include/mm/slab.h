@@ -48,6 +48,7 @@ extern struct kmem_cache efs_inode_kmem_cache;
 extern struct kmem_cache efs_dentry_kmem_cache;
 extern struct kmem_cache file_kmem_cache;
 extern struct kmem_cache tf_kmem_cache;
+extern struct kmem_cache vma_kmem_cache;
 
 // 初始化全局内核缓存
 void kmem_cache_init();

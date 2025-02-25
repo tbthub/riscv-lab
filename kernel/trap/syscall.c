@@ -24,6 +24,8 @@ extern int sys_unlink();
 extern int sys_link();
 extern int sys_mkdir();
 extern int sys_close();
+extern int sys_mmap();
+extern int sys_munmap();
 
 static int (*syscalls[])(void) = {
     [SYS_debug] sys_debug,
@@ -48,6 +50,8 @@ static int (*syscalls[])(void) = {
     [SYS_link] sys_link,
     [SYS_mkdir] sys_mkdir,
     [SYS_close] sys_close,
+    [SYS_mmap] sys_mmap,
+    [SYS_munmap] sys_munmap,
 };
 
 /*

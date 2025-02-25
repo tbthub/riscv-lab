@@ -172,7 +172,6 @@ void kvm_init()
     // the highest virtual address in the kernel.
     // 映射 TRAMPOLINE 页面
     // kvm_map(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
-    printk("kvm init ok!\n");
     kernel_pagetable = kpgtbl;
 }
 
@@ -193,16 +192,16 @@ void kvm_init_hart()
 }
 
 // 在进程虚存管理里面，我们将内核也映射到了用户页表
-// 所以大家都是在一个页表内,我们直接复制即可
-inline void *copy_to_user(void *to, const void *from, uint64 len)
-{
-    return memcpy(to, from, len);
-}
+// 所以大家都是在一个页表内,且内核可以直接访问用户。我们直接复制即可, 不需要这两个函数
+// inline void *copy_to_user(void *to, const void *from, uint64 len)
+// {
+//     return memcpy(to, from, len);
+// }
 
-inline void *copy_from_user(void *to, const void *from, uint64 len)
-{
-    return memcpy(to, from, len);
-}
+// inline void *copy_from_user(void *to, const void *from, uint64 len)
+// {
+//     return memcpy(to, from, len);
+// }
 
 // Load the user initcode into address 0x200,000,000 of pagetable,
 // for the very first process.

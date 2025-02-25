@@ -2,7 +2,7 @@
 #define __MM_H__
 #include "std/stddef.h"
 
-void mm_init();
+void mem_init();
 struct page * alloc_pages(uint32 flags, const int order);
 struct page * alloc_page(uint32 flags);
 void free_pages(struct page *pages, const int order);

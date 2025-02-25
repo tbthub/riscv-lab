@@ -73,8 +73,10 @@ struct vm_area_struct
 struct mm_struct
 {
   pagetable_t pgd;
+
   uint64 start_code;
   uint64 end_code;
+  
   uint64 start_data;
   uint64 end_data;
 
@@ -82,6 +84,7 @@ struct mm_struct
   uint64 end_brk;
 
   uint64 start_stack;
+  
   struct vm_area_struct *mmap;
   spinlock_t lock; // 保护并发访问
   int map_count;   // VMA 数量

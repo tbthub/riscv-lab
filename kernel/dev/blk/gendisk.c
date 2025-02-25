@@ -8,6 +8,7 @@
 
 #include "core/vm.h"
 #include "core/timer.h"
+#include "lib/string.h"
 #define BLK_SIZE 4096
 
 // 注意，必须在进程上下文进行测试
@@ -94,8 +95,7 @@ static __attribute__((noreturn)) int gen_start_io(struct gendisk *gd)
                 else
                     printk("r  bno :%d, off: %d, len: %d, \tbuf hit\n", buf->blockno, bio->offset, bio->len);
 #endif
-                copy_to_user(rq->vaddr, buf->page + bio->offset, bio->len);
-
+                memcpy(rq->vaddr, buf->page + bio->offset, bio->len);
                 buf_release(buf, 0);
                 buf_unpin(buf);
                 break;
@@ -123,7 +123,7 @@ static __attribute__((noreturn)) int gen_start_io(struct gendisk *gd)
                 else
                     printk("w  bno :%d, off: %d, len: %d, \tfull write | exists \n", buf->blockno, bio->offset, bio->len);
 #endif
-                copy_from_user(buf->page + bio->offset, rq->vaddr, bio->len);
+                memcpy(buf->page + bio->offset, rq->vaddr, bio->len);
                 buf_release(buf, 1);
                 buf_unpin(buf);
 

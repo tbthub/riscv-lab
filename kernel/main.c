@@ -34,18 +34,15 @@ void main()
      {
 
           cons_init();
-          mm_init();
+          mem_init();
           kvm_init();
+
           trap_init();
           plic_init();
-          
+
           proc_init();
           sched_init();
 
-          kvm_init_hart();
-          trap_inithart();
-          plic_inithart();
-          
           init_s();
 
           __sync_synchronize();
@@ -56,11 +53,12 @@ void main()
           while (started == 0)
                ;
           __sync_synchronize();
-          kvm_init_hart();
-          trap_inithart();
-          plic_inithart();
      }
      __sync_synchronize();
+     
+     kvm_init_hart();
+     trap_inithart();
+     plic_inithart();
      printk("hart %d starting\n", cpuid());
 
      scheduler();

@@ -15,7 +15,11 @@
 // 由于这个数组元素与页面地址一一对应的关系
 // 我们仅在分配/释放页面的出入口有所处理
 
-struct buddy_struct buddy;
+struct
+{
+    spinlock_t lock;
+    struct list_head free_lists[MAX_LEVEL];
+} buddy;
 
 // first address after kernel. defined by kernel.ld.
 // 由编译器最后计算出来，位于代码段和数据段的顶端
@@ -134,13 +138,12 @@ static void buddy_init()
 }
 
 // 内存管理初始化: page、buddy、kmem_cache、kmalloc
-void mm_init()
+void mem_init()
 {
-    first_all_page_init();
+    all_page_init();
     buddy_init();
     kmem_cache_init();
     kmalloc_init();
-    printk("mm_init ok\n");
 }
 
 // 分配 pages
@@ -199,6 +202,3 @@ void __free_page(void *addr)
 {
     free_page(get_page_struct((uint64)addr));
 }
-
-
-

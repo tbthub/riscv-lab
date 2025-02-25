@@ -142,7 +142,6 @@ void scheduler()
 void sched_init()
 {
     spin_init(&load_lock, "load_lock");
-    // 每个CPU都有一个指针指向这个idle
     for (int i = 0; i < NCPU; i++)
     {
         spin_init(&cpus[i].sched_list.lock, "sched_list");

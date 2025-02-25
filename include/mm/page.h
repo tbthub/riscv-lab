@@ -67,7 +67,7 @@ uint64          get_page_addr(struct page *pg);
 int             is_page_free(struct page *pg);
 
 // 初始化所有页面
-void            first_all_page_init();
+void            all_page_init();
 void            page_init(struct page *pg,uint32 flags);
 int             page_count(struct page *pg);
 void            page_push(struct page *page);

@@ -28,7 +28,6 @@ static void init_thread(void *)
     user_init();
     // user_init2();
     // user_init2();
-    // user_init2();
 }
 
 void init_s()

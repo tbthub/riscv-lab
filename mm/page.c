@@ -40,7 +40,7 @@ void page_init(struct page *pg,uint32 flags)
 }
 
 // 首次初始化
-void first_all_page_init()
+void all_page_init()
 {
     int i;
     // 内核代码数据空间

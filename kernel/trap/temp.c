@@ -120,7 +120,17 @@ int do_link()
     return -ENOSYS;
 }
 
-int do_mkdir(const char *path)
+int do_mkdir()
+{
+    return -ENOSYS;
+}
+
+int do_mmap()
+{
+    return -ENOSYS;
+}
+
+int do_munmap()
 {
     return -ENOSYS;
 }

@@ -6,9 +6,6 @@ extern void kvm_init();
 extern void kvm_init_hart();
 extern pagetable_t alloc_pgt();
 
-extern void *copy_to_user(void *to, const void *from, uint64 len);
-extern void *copy_from_user(void *to, const void *from, uint64 len);
-
 extern void uvmfirst(struct thread_info *init, uchar *src, uint sz);
 
 #endif

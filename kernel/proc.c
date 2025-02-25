@@ -10,6 +10,8 @@
 #include "core/vm.h"
 #include "core/proc.h"
 
+#include "fs/file.h"
+
 static struct
 {
   // 用于分配 pid 由于我们使用了slab回收的可以直接利用
@@ -63,12 +65,41 @@ static void thread_entry()
   thread_exit();
 }
 
+static inline void mm_init(struct mm_struct *mm)
+{
+  memset(mm, 0, sizeof(struct mm_struct));
+  spin_init(&mm->lock, "mm_struct");
+}
+
+// static void vma_free(struct vm_area_struct *vma)
+// {
+//   // 如果映射文件，则关闭文件
+//   if (vma->vm_file)
+//     // fput(vma->vm_file); // 减少文件引用计数
+//     file_close(vma->vm_file);
+//   kmem_cache_free(&vma_kmem_cache, vma);
+// }
+
+// // 需要 mm->lock
+// static void mm_free(struct mm_struct *mm)
+// {
+//   // 释放所有 VMA 区域
+//   struct vm_area_struct *vma = mm->mmap;
+//   while (vma)
+//   {
+//     struct vm_area_struct *next = vma->vm_next;
+//     vma_free(vma);
+//     vma = next;
+//   }
+//   // 释放页表和物理页
+//   // pgd_free(mm->pgd);
+// }
+
 // 初始化 task_struct
 static inline void task_struct_init(struct task_struct *task)
 {
   spin_init(&task->lock, "task");
-  memset(&task->mm, 0, sizeof(task->mm));
-  spin_init(&task->mm.lock, "mm_struct");
+  mm_init(&task->mm);
 }
 
 static inline void thread_info_init(struct thread_info *thread)
@@ -147,7 +178,6 @@ struct thread_info *alloc_uthread()
   if (!t->tf)
   {
     panic("alloc_uthread: tf_kmem_cache\n");
-    // printk("alloc_uthread tf_kmem_cache\n");
     // TODO 添加回收的逻辑，不过我们暂时先这样，不考虑异常，直接堵死
   }
   t->context.ra = (uint64)forkret;
