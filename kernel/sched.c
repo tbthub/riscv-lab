@@ -113,7 +113,6 @@ void scheduler()
             spin_unlock(&cpu->sched_list.lock);
 
             next->state = RUNNING;
-            next->cpu_id = cpuid();
             cpu->thread = next;
 #ifdef DEBUG_TASK_ON_CPU
             printk("thread: %s in running on hart %d\n", next->name, cpuid());
@@ -172,7 +171,7 @@ void kthread_create(void (*func)(void *), void *args, const char *name, int cpu_
                cpu_affinity);
         return;
     }
-    struct thread_info *t = kthread_struct_init();
+    struct thread_info *t = alloc_kthread();
     if (!t)
     {
         printk("kthread_create\n");
@@ -210,16 +209,14 @@ static uchar initcode[] = {0x5d, 0x71, 0x86, 0xe4, 0xa2, 0xe0, 0x80, 0x08, 0x23,
 
 // 当切换到 forkret 的时候，这里的 sp 是为0，但是此时还处于用户模式，
 // 内核中如发生中断，则栈指针会有问题。
-// 因此，初始化用户程序的时候必须要关中断的情况下进行
+// 因此，初始化用户程序的时候必须要关中断的情况下进行,且第一个用户程序初始化不用加锁
 void user_init()
 {
-    init_thread = uthread_struct_init();
-
-    init_thread->cpu_affinity = NO_CPU_AFF;
+    init_thread = alloc_uthread();
 
     init_thread->tf->kernel_sp = Kernel_stack_top(init_thread);
-    init_thread->task->pagetable = alloc_pt();
-    init_thread->task->sz = PGSIZE;
+    init_thread->task->mm.pgd = alloc_pgt();
+    init_thread->task->mm.size = sizeof(initcode);
 
     uvmfirst(init_thread, initcode, sizeof(initcode));
 

@@ -30,12 +30,12 @@ void trap_inithart(void)
     w_stvec((uint64)kernelvec);
 }
 
-static void do_timer()
+static void timer_intr()
 {
 
     time_update();
 
-    struct thread_info *cur = current;
+    struct thread_info *cur = myproc();
     if (!cur)
     {
         // 当前没有进程，正在开中断的情况下等待
@@ -43,50 +43,78 @@ static void do_timer()
         return;
     }
 
-    // spin_lock(&cur->lock);
     // ticks 为线程的私有变量，不需要加锁
     cur->ticks--;
-    // spin_unlock(&cur->lock);
 
-    // printk("timer");
     w_stimecmp(r_time() + 250000);
+
+    // 到期就让出 CPU
+    if (cur->ticks == 0)
+        yield();
 }
 
-static void do_external()
+static inline void external_intr()
 {
     int irq = plic_claim();
-    if (irq == UART0_IRQ)
+    switch (irq)
     {
+    case UART0_IRQ:
         uartintr();
-    }
-    else if (irq == VIRTIO0_IRQ)
-    {
+        break;
+    case VIRTIO0_IRQ:
         virtio_disk_intr();
-    }
-    else if (irq)
-    {
+        break;
+    case 0:
+        break;
+    default:
         printk("unexpected interrupt irq=%d\n", irq);
+        break;
     }
+
     if (irq)
         plic_complete(irq);
 }
 
-static int dev_intr()
+static inline void intr_handler(uint64 scause)
 {
-    uint64 scause = r_scause();
     switch (scause)
     {
-    case EXTERNAL_SCAUSE:
-        do_external();
-        return 1;
+    case EXTERNAL_SCAUSE: // 外设
+        external_intr();
+        break;
 
-    case TIMER_SCAUSE:
-        do_timer();
-        return 2;
+    case TIMER_SCAUSE: // 时钟
+        timer_intr();
+        break;
 
     default:
-        // printk("unkown dev\n");
-        return 0;
+        break;
+    }
+}
+
+#define E_SYSCALL 8L       // 系统调用
+#define E_INS_PF 12L       // 指令缺页
+#define E_LOAD_PF 13L      // 加载缺页
+#define E_STORE_AMO_PF 15L // 存储缺页
+
+static void excep_handler(uint64 scause)
+{
+    // uint64 stval;
+    switch (scause)
+    {
+    case E_SYSCALL:
+        intr_on();
+        syscall();
+        break;
+
+    case E_INS_PF:
+    case E_LOAD_PF:
+    case E_STORE_AMO_PF:
+
+        break;
+    default:
+        printk("unknown scause: %p\n", scause);
+        break;
     }
 }
 
@@ -108,22 +136,21 @@ __attribute__((noreturn)) void usertrapret()
     x |= SSTATUS_SPIE; // enable interrupts in user mode
     w_sstatus(x);
 
+    spin_lock(&p->task->mm.lock);
     // 如果发生了进程切换
-    if (r_satp() != MAKE_SATP(p->task->pagetable))
+    if (r_satp() != MAKE_SATP(p->task->mm.pgd))
     {
-        // printk("old satp: %p\n", r_satp());
         sfence_vma();
-        w_satp(MAKE_SATP(p->task->pagetable));
+        w_satp(MAKE_SATP(p->task->mm.pgd));
         sfence_vma();
-        // printk("now satp: %p\n", r_satp());
     }
+    spin_unlock(&p->task->mm.lock);
     userret();
 }
 
 // 内核 trap 处理函数 kernel_trap
 void kerneltrap()
 {
-    int which_dev = 0;            // 哪一个设备
     uint64 sepc = r_sepc();       // sepc: 保存异常发生时的 sepc 寄存器的值，sepc 存储了引发异常或中断时的程序计数器（PC）的值
     uint64 sstatus = r_sstatus(); // sstatus: 保存当前的 sstatus 寄存器的值，sstatus 包含状态标志，例如当前的运行模式
     uint64 scause = r_scause();   // scause: 保存 scause 寄存器的值，scause 指示了异常或中断的原因
@@ -131,57 +158,18 @@ void kerneltrap()
     assert((sstatus & SSTATUS_SPP) != 0, "kerneltrap: not from supervisor mode %d", sstatus & SSTATUS_SPP);
     assert(intr_get() == 0, "kerneltrap: interrupts enabled"); // xv6不允许嵌套中断，因此执行到这里的时候一定是关中断的
 
-    uint64 stval;
-    if ((which_dev = dev_intr()) == 0)
-    {
-        switch (scause)
-        {
-        case 12:
-            printk("kerneltrap scause: 12\n");
-            asm volatile("csrr %0, scause" : "=r"(scause));
-            asm volatile("csrr %0, stval" : "=r"(stval));
-            printk("scause: %p, stval: %p\n", scause, stval);
-            break;
-        case 13:
-            printk("kerneltrap scause: 13 (Load Page Fault)\n");
-            asm volatile("csrr %0, scause" : "=r"(scause));
-            asm volatile("csrr %0, stval" : "=r"(stval));
-            printk("scause: %p, stval: %p\n", scause, stval);
-            break;
-        case 15:
-            printk("kerneltrap scause: 15 (Store/AMO Page Fault)\n");
-            asm volatile("csrr %0, scause" : "=r"(scause));
-            asm volatile("csrr %0, stval" : "=r"(stval));
-            printk("scause: %p, stval: %p\n", scause, stval);
-            break;
-        default:
-            printk("scause: %p\n", scause);
-            break;
-        }
-    }
+    if (scause & (1ULL << 63))
+        intr_handler(scause);
+    else
+        excep_handler(scause);
 
-    // 处理时钟中断（让出 CPU）
-    // * 注意，这里的 myproc 可能为空，因此需要检测
-    // * 不同与 usertrap，usertrap一定是位于进程上下文的，因此 myproc 一定存在
-    if (which_dev == 2 && myproc() != NULL && myproc()->ticks == 0)
-        yield();
-
-    // yield() 可能会导致一些新的异常或中断，因此在返回之前，需要恢复原来的 sepc 和 sstatus 值。
-    // w_sepc(sepc): 将原来的 sepc 值写回寄存器，以便异常返回时能够继续原来的代码执行。
-    // w_sstatus(sstatus): 恢复 sstatus 的状态，以确保内核的状态和之前一致。
-
-    w_sepc(sepc);
-    w_sstatus(sstatus);
+    w_sepc(sepc);       // 将原来的 sepc 值写回寄存器，以便异常返回时能够继续原来的代码执行。
+    w_sstatus(sstatus); //  恢复 sstatus 的状态，以确保内核的状态和之前一致。
 }
-
-#define U_SYSCALL 0x8   // 系统调用
-// #define U_STORE_PF      // store 缺页中断
-// ....
 
 // 用户 trap 处理函数 user_trap
 void usertrap()
 {
-    int which_dev = 0;
     uint64 scause = r_scause();
     uint64 sepc = r_sepc();
 
@@ -196,48 +184,16 @@ void usertrap()
     struct thread_info *p = myproc();
     assert(p != NULL, "usertrap: p is NULL\n");
 
-    switch (scause)
-    {
-    case U_SYSCALL: // 系统调用
-        // if (killed(p))
-        // exit(-1);
-
-        // 返回到系统调用的下一条指令，即越过 ecall
-        sepc += 4;
-        intr_on();
-        syscall();
-        break;
-    case 12:
-        break;
-    case 13:
-        break;
-    case 15:
-        break;
-    default:
-        break;
-    }
-
-    if (scause == 8)
-    {
-    }
-    else if ((which_dev = dev_intr()) != 0)
-    {
-        // ok
-    }
+    if (scause & (1ULL << 63))
+        intr_handler(scause);
     else
     {
-        printk("usertrap\n");
-        printk("usertrap(): unexpected scause 0x%p pid=%d\n", r_scause(), p->pid);
-        printk("            sepc=0x%p stval=0x%p\n", r_sepc(), r_stval());
-        // setkilled(p);
+        // 额外处理下如果是系统调用
+        if (scause == E_SYSCALL)
+            // 返回到系统调用的下一条指令，即越过 ecall
+            sepc += 4;
+        excep_handler(scause);
     }
-
-    // if (killed(p))
-    // exit(-1);
-
-    // 用户程序切换的时候需要设置一些额外东西
-    if (which_dev == 2 && p->ticks == 0)
-        yield();
 
     p->tf->epc = sepc;
     usertrapret();

@@ -63,6 +63,44 @@ static void thread_entry()
   thread_exit();
 }
 
+// 初始化 task_struct
+static inline void task_struct_init(struct task_struct *task)
+{
+  spin_init(&task->lock, "task");
+  memset(&task->mm, 0, sizeof(task->mm));
+  spin_init(&task->mm.lock, "mm_struct");
+}
+
+static inline void thread_info_init(struct thread_info *thread)
+{
+  thread->task = NULL;
+  spin_init(&thread->lock, "thread");
+  thread->signal = 0;
+  thread->flags = 0;
+  // thread->state = UNUSED;
+  // thread->pid = -1;
+  
+  thread->tf = NULL;
+  thread->ticks = 10;
+  thread->args = NULL;
+  thread->func = NULL;
+  thread->cpu_affinity = NO_CPU_AFF;
+
+  INIT_LIST_HEAD(&thread->sched);
+  memset(&thread->context, 0, sizeof(thread->context));
+
+  thread->context.sp = Kernel_stack_top(thread);
+}
+
+// 这里应该是从 scheduler 的 swtch 进入
+// 在 scheduler 中获取了锁，这里需要释放
+static void forkret()
+{
+  spin_unlock(&myproc()->lock);
+  usertrapret();
+}
+
+
 // 申请一个空白的PCB，包括 thread_info + task_struct
 static struct thread_info *alloc_thread()
 {
@@ -75,69 +113,42 @@ static struct thread_info *alloc_thread()
     kmem_cache_free(&task_struct_kmem_cache, task);
     return NULL;
   }
-
-  spin_init(&thread->lock, "thread");
-
+  task_struct_init(task);
+  thread_info_init(thread);
   thread->task = task;
-  thread->signal = 0;
-  thread->flags = 0;
-  thread->state = USED;
 
   spin_lock(&pid_pool.lock);
   thread->pid = thread->pid == 0 ? pid_pool.pids++ : thread->pid;
   spin_unlock(&pid_pool.lock);
 
-  thread->tf = NULL;
-
-  thread->ticks = 10;
-  thread->args = NULL;
-  thread->func = NULL;
-  // thread->cpu_affinity = NO_CPU_AFF;
-
-  INIT_LIST_HEAD(&thread->sched);
-  memset(&thread->context, 0, sizeof(thread->context));
-  // thread->context.ra = NULL;
-  thread->context.sp = Kernel_stack_top(thread);
-
-  spin_init(&thread->task->lock, "thread");
-  thread->task->pagetable = NULL;
-  thread->task->sz = 0;
   return thread;
 }
 
-// 这里应该是从 scheduler 的 swtch 进入
-// 在 scheduler 中获取了锁，这里需要释放
-static void forkret()
-{
-  spin_unlock(&myproc()->lock);
-  usertrapret();
-}
-
-struct thread_info *kthread_struct_init()
+struct thread_info *alloc_kthread()
 {
   struct thread_info *t = alloc_thread();
   if (!t)
   {
-    printk("kthread_struct_init error!\n");
+    printk("alloc_kthread error!\n");
     return NULL;
   }
   t->context.ra = (uint64)thread_entry;
   return t;
 }
 
-struct thread_info *uthread_struct_init()
+struct thread_info *alloc_uthread()
 {
   struct thread_info *t = alloc_thread();
   if (!t)
   {
-    printk("uthread_struct_init error!\n");
+    printk("alloc_uthread: error!\n");
     return NULL;
   }
   t->tf = kmem_cache_alloc(&tf_kmem_cache);
   if (!t->tf)
   {
-    panic("uthread_struct_init tf_kmem_cache\n");
-    // printk("uthread_struct_init tf_kmem_cache\n");
+    panic("alloc_uthread: tf_kmem_cache\n");
+    // printk("alloc_uthread tf_kmem_cache\n");
     // TODO 添加回收的逻辑，不过我们暂时先这样，不考虑异常，直接堵死
   }
   t->context.ra = (uint64)forkret;
@@ -173,3 +184,8 @@ void proc_init()
   spin_init(&pid_pool.lock, "pid_pool");
   pid_pool.pids = 0;
 }
+
+//  TODO 检查地址合法性
+// int is_user_address(struct mm_struct *mm, uint64_t va) {
+//   return (va >= mm->start_addr && va < mm->end_addr);
+// }

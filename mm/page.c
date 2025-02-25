@@ -34,9 +34,9 @@ int is_page_free(struct page *page)
 void page_init(struct page *pg,uint32 flags)
 {
     pg->flags = flags;
-    atomic_set(&pg->_count,PG_FREE);
+    atomic_set(&pg->count,PG_FREE);
     INIT_LIST_HEAD(&pg->buddy);
-    pg->_slab = NULL;
+    pg->slab = NULL;
 }
 
 // 首次初始化
@@ -52,7 +52,7 @@ void first_all_page_init()
     
     for (i = 0; i < kernel_pfn_end; i++)
     {
-        atomic_inc(&mem_map.pages[i]._count);
+        atomic_inc(&mem_map.pages[i].count);
         SetPageFlag(&mem_map.pages[i], PG_reserved | PG_anon);
     }
 }
@@ -60,17 +60,17 @@ void first_all_page_init()
 
 inline int page_count(struct page *pg)
 {
-    return atomic_read(&pg->_count);
+    return atomic_read(&pg->count);
 }
 
 // 引用 +1
 inline void page_push(struct page *page)
 {
-    atomic_inc(&page->_count);
+    atomic_inc(&page->count);
 }
 
 // 引用 -1
 inline void page_pop(struct page *page)
 {
-    atomic_dec(&page->_count);
+    atomic_dec(&page->count);
 }

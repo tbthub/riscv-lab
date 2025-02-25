@@ -4,7 +4,7 @@
 #include "core/proc.h"
 extern void kvm_init();
 extern void kvm_init_hart();
-extern pagetable_t alloc_pt();
+extern pagetable_t alloc_pgt();
 
 extern void *copy_to_user(void *to, const void *from, uint64 len);
 extern void *copy_from_user(void *to, const void *from, uint64 len);

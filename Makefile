@@ -120,7 +120,7 @@ qemu-gdb: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 gdb: $(BUILD_DIR)/$(OUT_KERNEL_NAME)
-	$(GDB) $(BUILD_DIR)/$(OUT_KERNEL_NAME) -q -ex "target remote :$(GDBPORT)" 
+	$(GDB) $(BUILD_DIR)/$(OUT_KERNEL_NAME) -q -ex "target remote :$(GDBPORT)"  -ex "layout split"
 
 fs: virtio_disk.img
 	hexdump -C virtio_disk.img | less

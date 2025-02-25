@@ -40,7 +40,7 @@ static struct slab *slab_create(struct kmem_cache *cache)
     for (i = 0; i < page_count; i++)
     {
         SetPageFlag(page + i, PG_Slab);
-        page->_slab = slab;
+        page->slab = slab;
     }
 
     slab->kc = cache;
@@ -66,7 +66,7 @@ static void slab_destory(struct slab *slab)
     for (i = 0; i < page_count; i++)
     {
         SetPageFlag(page + i, 0);
-        page->_slab = NULL;
+        page->slab = NULL;
     }
 
     // 释放页面
@@ -250,7 +250,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj)
         panic("kmem_cache_free: '%s' has already been freed!\n", cache->name);
 
     struct slab *slab;
-    slab = get_page_struct((uint64)obj)->_slab;
+    slab = get_page_struct((uint64)obj)->slab;
 
     // 如果链表为空，说明是 cpu_cache,直接释放即可
     // 如果是 cpu_cache,则其他cpu无法访问这个slab的，是安全的，不必加锁

@@ -90,6 +90,6 @@ void *kmalloc(int size, uint32 flags)
 void kfree(void *obj)
 {
     struct slab *slab;
-    slab = get_page_struct((uint64)obj)->_slab;
+    slab = get_page_struct((uint64)obj)->slab;
     kmem_cache_free(slab->kc, obj);
 }

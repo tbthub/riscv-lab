@@ -10,7 +10,6 @@
 
 typedef int pid_t;
 #define KERNEL_STACK_SIZE 4096
-#define current myproc()
 
 // Saved registers for kernel context switches.
 struct context
@@ -61,13 +60,40 @@ enum task_state
   IDLE
 };
 
-// 主要管理资源，文件等。对个thread_info对应一个task_struct。操作task_struct时候需要加锁
+// Virtual Memory Area
+struct vm_area_struct
+{
+  uint64 vm_start;      // 区域起始地址
+  uint64 vm_end;        // 区域结束地址
+  flags_t vm_flags;     // 区域标志 RWX
+  struct file *vm_file; // 关联文件
+  struct vm_area_struct *vm_next;
+};
+
+struct mm_struct
+{
+  pagetable_t pgd;
+  uint64 start_code;
+  uint64 end_code;
+  uint64 start_data;
+  uint64 end_data;
+
+  uint64 start_brk;
+  uint64 end_brk;
+
+  uint64 start_stack;
+  struct vm_area_struct *mmap;
+  spinlock_t lock; // 保护并发访问
+  int map_count;   // VMA 数量
+
+  uint64 size; // 总内存使用量
+};
+
+// 主要管理资源，文件等。多个thread_info对应一个task_struct。操作task_struct时候需要加锁
 struct task_struct
 {
   spinlock_t lock;
-
-  pagetable_t pagetable;
-  uint64 sz;
+  struct mm_struct mm;
 
   // struct file *ofile[NOFILE];
   // struct inode *cwd;
@@ -77,7 +103,7 @@ struct trapframe
 {
   /*   0 */ uint64 kernel_sp;
   /*   8 */ uint64 epc;
-  
+
   /*  16 */ uint64 ra;
   /*  24 */ uint64 sp;
   /*  32 */ uint64 gp;
@@ -134,8 +160,6 @@ struct thread_info
   void *args;
   int cpu_affinity;
 
-  uint16 cpu_id; // 用于记录当前线程在哪个核心上运行，这个暂时没想到干啥，先用着
-
   // these are private to the process, so p->lock need not be held.
   struct context context;
   char name[16];
@@ -145,8 +169,8 @@ extern void proc_init();
 extern int cpuid();
 extern struct cpu *mycpu();
 extern struct thread_info *myproc(void);
-extern struct thread_info *kthread_struct_init();
-extern struct thread_info *uthread_struct_init();
+extern struct thread_info *alloc_kthread();
+extern struct thread_info *alloc_uthread();
 
 #define Kernel_stack_top(t) ((uint64)t + 2 * PGSIZE - 16)
 

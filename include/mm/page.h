@@ -44,9 +44,9 @@
 struct page
 {
     uint32 flags;
-    atomic_t _count; // 引用计数 -1 没有引用；0 被分配但未被显式引用
+    atomic_t count; // 引用计数 -1 没有引用；0 被分配但未被显式引用
     struct list_head buddy;
-    struct slab * _slab;
+    struct slab * slab;
 };
 
 struct mem_map_struct{
