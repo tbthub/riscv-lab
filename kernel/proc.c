@@ -79,7 +79,7 @@ static inline void thread_info_init(struct thread_info *thread)
   thread->flags = 0;
   // thread->state = UNUSED;
   // thread->pid = -1;
-  
+
   thread->tf = NULL;
   thread->ticks = 10;
   thread->args = NULL;
@@ -99,7 +99,6 @@ static void forkret()
   spin_unlock(&myproc()->lock);
   usertrapret();
 }
-
 
 // 申请一个空白的PCB，包括 thread_info + task_struct
 static struct thread_info *alloc_thread()

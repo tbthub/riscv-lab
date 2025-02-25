@@ -118,6 +118,20 @@ static void excep_handler(uint64 scause)
     }
 }
 
+// 这个函数仅在用户中断返回被调用
+static inline void swtch_pgd(struct thread_info *next)
+{
+    spin_lock(&next->task->mm.lock);
+    // 如果发生了进程切换
+    if (r_satp() != MAKE_SATP(next->task->mm.pgd))
+    {
+        sfence_vma();
+        w_satp(MAKE_SATP(next->task->mm.pgd));
+        sfence_vma();
+    }
+    spin_unlock(&next->task->mm.lock);
+}
+
 __attribute__((noreturn)) void usertrapret()
 {
     struct thread_info *p = myproc();
@@ -136,15 +150,7 @@ __attribute__((noreturn)) void usertrapret()
     x |= SSTATUS_SPIE; // enable interrupts in user mode
     w_sstatus(x);
 
-    spin_lock(&p->task->mm.lock);
-    // 如果发生了进程切换
-    if (r_satp() != MAKE_SATP(p->task->mm.pgd))
-    {
-        sfence_vma();
-        w_satp(MAKE_SATP(p->task->mm.pgd));
-        sfence_vma();
-    }
-    spin_unlock(&p->task->mm.lock);
+    swtch_pgd(p);
     userret();
 }
 
