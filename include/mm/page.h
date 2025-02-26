@@ -73,4 +73,7 @@ int             page_count(struct page *pg);
 void            page_push(struct page *page);
 void            page_pop(struct page *page);
 
+#define page_pop_test(page) \
+    atomic_dec_and_test(&(page)->count)
+
 #endif

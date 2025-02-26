@@ -191,18 +191,6 @@ void kvm_init_hart()
     sfence_vma();
 }
 
-// 在进程虚存管理里面，我们将内核也映射到了用户页表
-// 所以大家都是在一个页表内,且内核可以直接访问用户。我们直接复制即可, 不需要这两个函数
-// inline void *copy_to_user(void *to, const void *from, uint64 len)
-// {
-//     return memcpy(to, from, len);
-// }
-
-// inline void *copy_from_user(void *to, const void *from, uint64 len)
-// {
-//     return memcpy(to, from, len);
-// }
-
 // Load the user initcode into address 0x200,000,000 of pagetable,
 // for the very first process.
 // sz must be less than a page.
@@ -243,45 +231,6 @@ static inline void clear_cow_page(pte_t *pte)
 static inline int is_cow_page(pte_t *pte)
 {
     return (*pte & PTE_COW) != 0;
-}
-
-// TODO 检查虚拟地址是否合法
-// int is_user_address(struct mm_struct *mm, uint64_t va) {
-//     return (va >= mm->start_addr && va < mm->end_addr);
-// }
-
-void handle_page_fault(uint64 fault_addr, uint64 scause)
-{
-    printk("handle_page_fault\n");
-    // struct task_struct *t = myproc()->task;
-    // // TODO 检查地址是否在用户空间合法范围内
-    // // if (!is_user_address(current->mm, fault_addr))
-    // // {
-    // //     kill_process(current); // 非法地址，终止进程
-    // //     return;
-    // // }
-
-    // void *pa = __alloc_page(0);
-    // assert(pa != NULL, "Out of memory\n");
-
-    // pte_t *pte = walk(t->pagetable, fault_addr, 1); // 创建页表项
-    // assert(pte != NULL, "Failed to walk page table\n");
-
-    // // 设置页表项权限（根据缺页类型）
-    // uint64 perm = PTE_U | PTE_V;
-    // if (scause == 15)
-    //     perm |= PTE_W; // 存储缺页需写权限
-    // *pte = PA2PTE(pa) | perm;
-
-    // // 如果是COW页，需复制数据并更新映射
-    // if (is_cow_page(pte))
-    // {
-    //     clear_cow_page(pte);
-    //     memcpy(pa, fault_addr, PGSIZE);
-    // }
-
-    // // 刷新TLB
-    // sfence_vma();
 }
 
 // // 定义 PTE_COW（假设使用第 8 位）
@@ -361,3 +310,55 @@ void handle_page_fault(uint64 fault_addr, uint64 scause)
 //     *pte = PA2PTE(pa) | perm;
 //     flush_tlb(fault_addr);
 // }
+
+static struct vm_area_struct *find_vma(struct mm_struct *mm, uint64 addr)
+{
+    // TODO 我们暂时使用比较简单的线性查找，以后有机会改为红黑树
+    struct vm_area_struct *v;
+    spin_lock(&mm->lock);
+    v = mm->mmap;
+    while (v)
+    {
+        if (addr >= v->vm_start && addr <= v->vm_end)
+            break;
+        v = v->vm_next;
+    }
+    spin_unlock(&mm->lock);
+    return v;
+}
+
+// ? 我们暂且实现写时复制的缺页中断
+// static int vma_fault(struct mm_struct *mm, struct vm_area_struct *vm, uint64 addr)
+// {
+//     printk("vma_fault\n");
+//     pte_t *pte = walk(mm->pgd, addr, 0); // 不自动创建页表项
+//     if (!pte || !(*pte & PTE_V))
+//         panic("Invalid page table entry\n");
+//     if (is_cow_page(*pte))
+//     {
+
+//     }
+//     return 0;
+// }
+
+
+static int vma_ops_fault(struct mm_struct *mm, struct vm_area_struct *vm, uint64 addr)
+{
+    
+}
+
+void page_fault_handler(uint64 fault_addr, uint64 scause)
+{
+    printk("page_fault_handler\n");
+    struct task_struct *t = myproc()->task;
+    struct vm_area_struct *v = find_vma(&t->mm, fault_addr);
+    if (!v)
+    {
+        // TODO 杀死进程，不过我们暂时先报错
+        // kill_process(current); // 非法地址，终止进程
+        panic("page_fault_handler: illegal addr %p\n", fault_addr);
+        // return;
+    }
+    v->vm_ops->fault(&t->mm, v, fault_addr);
+    sfence_vma();
+}

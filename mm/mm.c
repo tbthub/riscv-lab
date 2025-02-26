@@ -150,8 +150,8 @@ void mem_init()
 struct page *alloc_pages(uint32 flags, const int order)
 {
     struct page *pages = buddy_alloc(order);
-    for (int i = 0; i < (1 << order); i++)
-        page_push(pages + i);
+    // 只需要设置第一个页面的引用
+    page_push(pages);
 
     return pages;
 }
@@ -180,10 +180,9 @@ void *__alloc_page(uint32 flags)
 // 释放 pages
 void free_pages(struct page *pages, const int order)
 {
-    for (int i = 0; i < (1 << order); i++)
-        page_pop(pages + i);
-
-    buddy_free(pages, order);
+    // 只需要设置第一个页面的引用
+    if (page_pop_test(pages))
+        buddy_free(pages, order);
 }
 
 void __free_pages(void *addr, const int order)
@@ -194,8 +193,9 @@ void __free_pages(void *addr, const int order)
 // 释放一个 page
 void free_page(struct page *page)
 {
-    page_pop(page);
-    buddy_free(page, 0);
+    // 只需要设置第一个页面的引用
+    if (page_pop_test(page))
+        buddy_free(page, 0);
 }
 
 void __free_page(void *addr)

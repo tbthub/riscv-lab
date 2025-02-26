@@ -48,9 +48,9 @@ void gendisk_init(struct block_device *bd, const struct gendisk_operations *ops)
     gd_ops->write = (ops->write) ? (ops->write) : gen_write;
 
     bhash_init(&gd->bhash, gd);
-    kthread_create(kthread_gen_start_io, gd, "gen_start_io",NO_CPU_AFF);
+    kthread_create(kthread_gen_start_io, gd, "gen_start_io", NO_CPU_AFF);
 
-    kthread_create(flush_bhash, &gd->bhash, "gen_flush_bhash",NO_CPU_AFF);
+    kthread_create(flush_bhash, &gd->bhash, "gen_flush_bhash", NO_CPU_AFF);
 }
 
 // 这个重要
@@ -95,6 +95,8 @@ static __attribute__((noreturn)) int gen_start_io(struct gendisk *gd)
                 else
                     printk("r  bno :%d, off: %d, len: %d, \tbuf hit\n", buf->blockno, bio->offset, bio->len);
 #endif
+                // 在进程虚存管理里面，我们将内核也映射到了用户页表
+                // 所以大家都是在一个页表内,且内核可以直接访问用户。我们直接复制即可。
                 memcpy(rq->vaddr, buf->page + bio->offset, bio->len);
                 buf_release(buf, 0);
                 buf_unpin(buf);

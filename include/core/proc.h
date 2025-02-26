@@ -7,6 +7,7 @@
 #include "lib/list.h"
 #include "lib/spinlock.h"
 #include "riscv.h"
+#include "vm.h"
 
 typedef int pid_t;
 #define KERNEL_STACK_SIZE 4096
@@ -58,38 +59,6 @@ enum task_state
   RUNNING,
   ZOMBIE,
   IDLE
-};
-
-// Virtual Memory Area
-struct vm_area_struct
-{
-  uint64 vm_start;      // 区域起始地址
-  uint64 vm_end;        // 区域结束地址
-  flags_t vm_flags;     // 区域标志 RWX
-  struct file *vm_file; // 关联文件
-  struct vm_area_struct *vm_next;
-};
-
-struct mm_struct
-{
-  pagetable_t pgd;
-
-  uint64 start_code;
-  uint64 end_code;
-  
-  uint64 start_data;
-  uint64 end_data;
-
-  uint64 start_brk;
-  uint64 end_brk;
-
-  uint64 start_stack;
-  
-  struct vm_area_struct *mmap;
-  spinlock_t lock; // 保护并发访问
-  int map_count;   // VMA 数量
-
-  uint64 size; // 总内存使用量
 };
 
 // 主要管理资源，文件等。多个thread_info对应一个task_struct。操作task_struct时候需要加锁
