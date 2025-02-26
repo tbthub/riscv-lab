@@ -233,84 +233,7 @@ static inline int is_cow_page(pte_t *pte)
     return (*pte & PTE_COW) != 0;
 }
 
-// // 定义 PTE_COW（假设使用第 8 位）
 // #define PTE_COW (1 << 8)
-
-// // 物理页引用计数（需全局管理）
-// struct page {
-//     int ref_count;
-//     // 其他元数据...
-// };
-
-// // 设置 COW 页（需减少原页的写权限）
-// inline void set_cow_page(pte_t *pte, struct page *page) {
-//     *pte &= ~PTE_W;     // 清除写权限
-//     *pte |= PTE_COW;    // 标记为 COW 页
-//     page->ref_count++;   // 增加引用计数
-// }
-
-// // 检查地址合法性
-// int is_user_address(struct mm_struct *mm, uint64_t va) {
-//     return (va >= mm->start_addr && va < mm->end_addr);
-// }
-
-// void handle_page_fault(uint64_t fault_addr, uint64_t scause) {
-//     struct task_struct *t = myproc()->task;
-//     // 1. 检查地址合法性
-//     if (!is_user_address(t->mm, fault_addr)) {
-//         kill_process(t); // 非法地址，终止进程
-//         return;
-//     }
-
-//     // 2. 获取页表项
-//     pte_t *pte = walk(t->pagetable, fault_addr, 0); // 不自动创建页表项
-//     if (!pte || !(*pte & PTE_V)) {
-//         panic("Invalid page table entry\n");
-//     }
-
-//     // 3. 处理 COW 缺页
-//     if (is_cow_page(*pte)) {
-//         spin_lock(&t->mm->lock); // 加锁防止并发
-
-//         // 获取原页的物理地址和引用
-//         uint64_t orig_pa = PTE2PA(*pte);
-//         struct page *orig_page = pa_to_page(orig_pa);
-
-//         // 分配新物理页
-//         void *new_pa = __alloc_page(0);
-//         assert(new_pa != NULL, "Out of memory\n");
-//         struct page *new_page = pa_to_page(new_pa);
-//         new_page->ref_count = 1;
-
-//         // 复制数据（需映射到内核虚拟地址）
-//         memcpy((void*)kmap(new_pa), (void*)kmap(orig_pa), PGSIZE);
-//         kunmap(orig_pa); // 解除映射
-//         kunmap(new_pa);
-
-//         // 更新页表项，赋予写权限并清除 COW 标志
-//         *pte = PA2PTE(new_pa) | PTE_U | PTE_V | PTE_W;
-//         flush_tlb(fault_addr);
-
-//         // 减少原页的引用计数
-//         orig_page->ref_count--;
-//         if (orig_page->ref_count == 0) {
-//             __free_page(orig_pa);
-//         }
-
-//         spin_unlock(&t->mm->lock);
-//         return;
-//     }
-
-//     // 4. 常规缺页处理（非 COW）
-//     void *pa = __alloc_page(0);
-//     assert(pa != NULL, "Out of memory\n");
-
-//     uint64_t perm = PTE_U | PTE_V;
-//     if (scause == 15) perm |= PTE_W;
-//     *pte = PA2PTE(pa) | perm;
-//     flush_tlb(fault_addr);
-// }
-
 static struct vm_area_struct *find_vma(struct mm_struct *mm, uint64 addr)
 {
     // TODO 我们暂时使用比较简单的线性查找，以后有机会改为红黑树
@@ -327,24 +250,28 @@ static struct vm_area_struct *find_vma(struct mm_struct *mm, uint64 addr)
     return v;
 }
 
-// ? 我们暂且实现写时复制的缺页中断
-// static int vma_fault(struct mm_struct *mm, struct vm_area_struct *vm, uint64 addr)
-// {
-//     printk("vma_fault\n");
-//     pte_t *pte = walk(mm->pgd, addr, 0); // 不自动创建页表项
-//     if (!pte || !(*pte & PTE_V))
-//         panic("Invalid page table entry\n");
-//     if (is_cow_page(*pte))
-//     {
-
-//     }
-//     return 0;
-// }
-
-
 static int vma_ops_fault(struct mm_struct *mm, struct vm_area_struct *vm, uint64 addr)
 {
-    
+}
+
+static int vm_file_load();
+
+static int vm_rx_fault(struct mm_struct *mm, struct vm_area_struct *vm, uint64 addr)
+{
+    if (TEST_FLAG(&vm->vm_prot, PROT_LAZY))
+    {
+        // 如果是懒加载，则直接分配页面 + 映射
+    }
+    else if (vm->vm_file)
+    {
+        uint32 off = addr - vm->vm_start;
+        vm_file_load();
+    }
+    else
+    {
+        panic("vm_rx_fault\n");
+    }
+    return 0;
 }
 
 void page_fault_handler(uint64 fault_addr, uint64 scause)
@@ -359,6 +286,15 @@ void page_fault_handler(uint64 fault_addr, uint64 scause)
         panic("page_fault_handler: illegal addr %p\n", fault_addr);
         // return;
     }
+    pte_t *pte = walk(t->mm.pgd, fault_addr, 0);
+    if (pte && ~is_cow_page(pte))
+    {
+        // TODO 杀死进程，不过我们暂时先报错
+        // kill_process(current); // 非法地址，终止进程
+        panic("page_fault_handler: illegal addr %p\n", fault_addr);
+        // return;
+    }
+
     v->vm_ops->fault(&t->mm, v, fault_addr);
     sfence_vma();
 }

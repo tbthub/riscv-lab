@@ -10,13 +10,14 @@ struct thread_info;
 #define PROT_EXEC (1L << 1)
 #define PROT_WRITE (1L << 2)
 #define PROT_READ (1L << 3)
+#define PROT_LAZY (1L << 31)
 
 // Virtual Memory Area
 struct vm_area_struct
 {
     uint64 vm_start;      // 区域起始地址
     uint64 vm_end;        // 区域结束地址
-    uint32 vm_prot;       // 区域标志 RWX
+    flags_t vm_prot;       // 区域标志 RWX
     uint32 vm_pgoff;      // 文件页偏移
     struct file *vm_file; // 关联文件
     struct vm_area_struct *vm_next;

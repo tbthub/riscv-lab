@@ -111,7 +111,7 @@ static void excep_handler(uint64 scause)
     case E_INS_PF:
     case E_LOAD_PF:
     case E_STORE_AMO_PF:
-
+        
         break;
     default:
         printk("unknown scause: %p\n", scause);
